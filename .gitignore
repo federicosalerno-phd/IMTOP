@@ -1,0 +1,45 @@
+# ── Model weights (heavy; download separately — see README) ─────────────────
+*.pth
+sam_vit_b.pth
+
+# ── Clinical image data — NOT for public release ────────────────────────────
+Wound Image Dataset/
+Wound Image Dataset_masks/
+Wound Image Dataset_renamed/
+*_metrics.json
+manifest.csv
+
+# ── App / run outputs ───────────────────────────────────────────────────────
+perf_report.txt
+*.stl
+_smoke.csv
+
+# ── Generated figures & analysis session files (Graphs/) ────────────────────
+# The R scripts (Graphs/*.R) and CSV data are tracked; their rendered outputs
+# are regenerable, so they are ignored to keep the repo light.
+Graphs/*.pdf
+Graphs/*.svg
+Graphs/*.png
+Graphs/*.pptx
+Graphs/*.xlsx
+Graphs/.RData
+Graphs/.Rhistory
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ── Development-only utilities (not part of the release) ────────────────────
+dev/
+
+# ── Local tooling / editor / OS cruft ───────────────────────────────────────
+.vscode/
+.claude/
+*.bak
+desktop.ini
+.DS_Store
+Thumbs.db

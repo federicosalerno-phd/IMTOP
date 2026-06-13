@@ -1,0 +1,1811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Wound Annotator v17</title>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<!-- Three.js (interactive 3D patch) loaded from the local libs/ folder via the page base-URL -->
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* exact mockup palette */
+  --bg:#111111;
+  --s1:#1a1a1a;
+  --s2:#222222;
+  --s3:#2c2c2c;
+  --b1:#333333;
+  --b2:#444444;
+  --b3:#555555;
+  --t1:#eeeeee;
+  --t2:#888888;
+  --t3:#555555;
+  --teal:#1D9E75;--teal-dark:#17886a;
+  --teal-light:#E1F5EE;--teal-text:#085041;--teal-border:#5DCAA5;
+  --green:#4ade80;
+  --red:#f87171;--amber:#fbbf24;--blue:#60a5fa;
+  --danger:#f87171;--danger-bg:#1e1010;--danger-border:#4a1515;
+  --rad:8px;
+}
+html,body{
+  width:100vw;height:100vh;overflow:hidden;
+  background:var(--bg);color:var(--t1);
+  font-family:-apple-system,'Segoe UI',system-ui,sans-serif;
+  font-size:14px;line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+}
+#app{display:flex;flex-direction:column;width:100vw;height:100vh;overflow:hidden}
+
+/* ── titlebar ── */
+#tb{
+  height:48px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;
+  background:var(--s1);border-bottom:1px solid var(--b1);
+}
+.tb-l{display:flex;align-items:center;gap:10px}
+.logo{
+  width:30px;height:30px;background:var(--teal);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  overflow:hidden;margin-right:11px;   /* logo -> "Wound Annotator" */
+}
+.logo img{width:22px;height:22px;object-fit:contain}
+.logo-default{font-size:16px;color:#fff;line-height:1}
+.app-name{font-size:15px;font-weight:600;color:var(--t1);letter-spacing:-0.2px}
+.tb-r{display:flex;align-items:center;gap:10px}
+.tb-r>*+*{margin-left:10px}   /* space between top buttons / status pill (gap ignored) */
+.tbbtn{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;border:1px solid var(--b2);border-radius:var(--rad);
+  font-size:13px;color:var(--t2);cursor:pointer;background:transparent;
+  font-family:inherit;transition:all .1s;
+}
+.tbbtn:hover{background:var(--s2);color:var(--t1)}
+.tbbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-right:7px}
+.stpill{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 11px;border:1px solid var(--b1);border-radius:99px;
+  font-size:12.5px;color:var(--t2);
+}
+.sd{width:7px;height:7px;border-radius:50%;background:var(--t3);transition:background .3s;margin-right:7px}
+.sd.ok{background:var(--teal)}
+.sd.err{background:var(--red)}
+.sd.busy{background:var(--amber);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── tabbar ── */
+#tabbar{
+  height:40px;flex-shrink:0;
+  display:flex;align-items:stretch;padding:0 14px;gap:4px;
+  background:var(--s1);border-bottom:1px solid var(--b1);
+}
+.tab{
+  display:flex;align-items:center;gap:8px;padding:0 14px;
+  cursor:pointer;font-size:13px;font-weight:500;color:var(--t3);
+  border-bottom:2px solid transparent;white-space:nowrap;user-select:none;
+  transition:color .1s;
+}
+.tab:hover{color:var(--t2)}
+.tab.active{color:var(--teal-border);border-bottom-color:var(--teal)}
+.tab.done{color:var(--t2)}
+.tab.locked{opacity:.35;pointer-events:none}
+.tn{
+  width:17px;height:17px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-weight:600;flex-shrink:0;
+  background:var(--s3);border:1px solid var(--b2);color:var(--t3);
+  transition:all .1s;
+  margin-right:9px;   /* space number -> label (flex `gap` is ignored here) */
+}
+.tab.active .tn{background:var(--teal);border-color:var(--teal);color:#fff}
+.tab.done .tn{background:var(--teal-light);border-color:var(--teal-border);color:var(--teal-text)}
+
+/* ── body ── */
+#body{flex:1;min-height:0;display:flex;overflow:hidden}
+
+/* ── canvas zone ── */
+#czone{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+#ctoolbar{
+  height:36px;flex-shrink:0;
+  display:none;align-items:center;gap:5px;padding:0 10px;
+  background:var(--s2);border-bottom:0.5px solid var(--b1);
+}
+.ct{
+  width:26px;height:26px;border-radius:var(--rad);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;cursor:pointer;color:var(--t2);
+  border:0.5px solid transparent;transition:all .1s;
+}
+.ct:hover{background:var(--s1);color:var(--t1)}
+.ct.on{background:var(--s1);border-color:var(--b2);color:var(--t1)}
+.ctsep{width:0.5px;height:16px;background:var(--b1);margin:0 2px;flex-shrink:0}
+.cthint{font-size:12px;color:var(--t3);margin-left:4px;flex:1}
+#cwrap{
+  flex:1;min-height:0;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;position:relative;
+}
+/* The photo lives in a CSS-transformed <img> layer (scaled by the GPU
+   compositor, never re-blitted on the 2D canvas), with the canvas on top for
+   crisp vector overlays only. This keeps zoom/pan/drag smooth on any machine,
+   regardless of whether canvas rasterization is hardware-accelerated. */
+#cwrap #baseimg,#cwrap #ovimg{
+  position:absolute;top:0;left:0;transform-origin:0 0;
+  pointer-events:none;will-change:transform;max-width:none;max-height:none;
+  image-rendering:auto;user-select:none;
+}
+#cwrap canvas{position:absolute;top:0;left:0;display:block;width:100%;height:100%}
+.covl{
+  position:absolute;top:10px;left:10px;pointer-events:none;
+  background:#0f0f0fcc;border:0.5px solid var(--b2);border-radius:6px;
+  padding:6px 10px;font-size:12px;color:var(--t2);line-height:1.7;
+}
+.czoom{
+  position:absolute;bottom:8px;right:8px;pointer-events:none;
+  background:#0f0f0faa;border:0.5px solid var(--b1);border-radius:4px;
+  padding:3px 8px;font-size:11px;color:var(--t3);
+}
+
+/* ── page 0: drop zone ── */
+#p0wrap{
+  flex:1;min-height:0;
+  display:none;align-items:center;justify-content:center;
+  padding:40px;
+}
+#p0wrap > div{display:flex;flex-direction:column;align-items:center;gap:24px}
+#p0wrap > div > *+*{margin-top:24px}   /* vertical spacing (column `gap` ignored): boxes / file tag / stats */
+.dz-row{display:flex;justify-content:center}
+.dz{
+  width:220px;height:140px;
+  margin:0 16px;                 /* margin works even where flex `gap` is unsupported */
+  border:1px dashed var(--b2);border-radius:10px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;cursor:pointer;color:var(--t3);transition:all .14s;
+}
+.dz:hover{border-color:var(--t2);background:var(--s2);color:var(--t1)}
+.dz.dzover{border-color:var(--teal);border-style:solid;background:var(--s2);color:var(--t1)}
+.dz.dzover svg{opacity:1}
+.dz svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.6;margin-bottom:8px}
+.dz-lbl{margin-bottom:5px}
+.dz:hover svg{opacity:1}
+.dz-lbl{font-size:13.5px;font-weight:500;text-align:center;line-height:1.45;color:var(--t2)}
+.dz:hover .dz-lbl{color:var(--t1)}
+.dz-sub{font-size:11.5px;color:var(--t3)}
+.ftag{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#1D9E7518;border:1px solid #1D9E7540;
+  color:var(--green);padding:5px 14px;border-radius:99px;
+  font-size:13px;font-weight:500;
+}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px;grid-gap:24px;width:340px}
+/* Robust fallback: margins create the horizontal/vertical space even where the
+   CSS grid `gap` is ignored by the embedded Chromium. */
+.statgrid .scard:nth-child(1){margin-right:12px}
+.statgrid .scard:nth-child(2){margin-left:12px}
+.statgrid .scard:nth-child(3){margin-top:14px}
+.scard{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:10px 12px}
+.sc-l{font-size:11px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.sc-v{font-size:20px;font-weight:500;line-height:1}
+.sc-s{font-size:11px;color:var(--t2);margin-top:2px}
+
+/* ── page 5: 3D views ── */
+#p5wrap{
+  flex:1;min-height:0;
+  display:none;
+  padding:12px;gap:10px;
+}
+.vcard{
+  border:0.5px solid var(--b1);border-radius:9px;
+  overflow:hidden;display:flex;flex-direction:column;flex:1;
+}
+.vlbl{
+  font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;
+  padding:6px 10px;border-bottom:0.5px solid var(--b1);flex-shrink:0;
+}
+.vlbl.g{color:var(--teal-border)}.vlbl.r{color:var(--red)}
+.vimg{
+  flex:1;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  min-height:0;position:relative;
+}
+.vwait{font-size:12px;color:var(--t3)}
+.v3d{display:block;width:100%;height:100%;cursor:grab}
+.v3d:active{cursor:grabbing}
+.v3dhint{
+  position:absolute;bottom:7px;left:50%;transform:translateX(-50%);
+  font-size:10px;color:var(--t3);background:#0f0f0faa;border:0.5px solid var(--b1);
+  border-radius:4px;padding:2px 8px;pointer-events:none;letter-spacing:.3px;text-transform:uppercase;
+}
+
+/* ── right panel ── */
+#rp{
+  width:240px;flex-shrink:0;
+  border-left:0.5px solid var(--b1);
+  display:flex;flex-direction:column;
+  background:var(--s1);overflow:hidden;
+}
+.rp-hd{
+  padding:12px 14px 10px;border-bottom:0.5px solid var(--b1);flex-shrink:0;
+}
+.rp-title{font-size:14px;font-weight:500;color:var(--t1)}
+.rp-sub{font-size:12px;color:var(--t3);margin-top:2px}
+
+/* scrollable content */
+.rp-scroll{
+  flex:1;min-height:0;
+  overflow-y:auto;
+  padding:10px 13px;
+  display:flex;flex-direction:column;gap:2px;
+}
+.rp-scroll::-webkit-scrollbar{width:4px}
+.rp-scroll::-webkit-scrollbar-track{background:transparent}
+.rp-scroll::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+.rp-scroll::-webkit-scrollbar-thumb:hover{background:var(--b3)}
+
+/* pinned footer */
+.rp-foot{
+  flex-shrink:0;padding:10px 13px;
+  border-top:0.5px solid var(--b1);
+  display:flex;flex-direction:column;gap:5px;
+}
+.rp-foot>*+*{margin-top:7px}        /* vertical spacing (gap ignored) */
+.rp-nav{display:flex;gap:5px}
+.rp-nav>*+*{margin-left:10px}       /* space Back <-> Next/Confirm (gap ignored) */
+.btn-confirm{
+  flex:1;padding:8px;
+  background:var(--teal);color:#fff;border:none;border-radius:var(--rad);
+  font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:background .1s;
+}
+.btn-confirm:hover{background:var(--teal-dark)}
+.btn-confirm:disabled{background:var(--s2);color:var(--t3);cursor:default;border:0.5px solid var(--b1)}
+.btn-back{
+  padding:8px 12px;background:transparent;color:var(--t2);
+  border:0.5px solid var(--b2);border-radius:var(--rad);
+  font-size:13px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  transition:all .1s;white-space:nowrap;
+}
+.btn-back:hover{background:var(--s2);color:var(--t1)}
+.btn-back:disabled{opacity:.3;pointer-events:none}
+.btn-outline{
+  width:100%;padding:7px;background:transparent;color:var(--t2);
+  border:0.5px solid var(--b2);border-radius:var(--rad);
+  font-size:12px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:all .1s;
+}
+.btn-outline:hover{background:var(--s2);color:var(--t1)}
+.btn-danger{
+  width:100%;padding:7px;background:transparent;color:var(--danger);
+  border:0.5px solid var(--danger-border);border-radius:var(--rad);
+  font-size:12px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:all .1s;
+}
+.btn-danger:hover{background:var(--danger-bg)}
+
+/* right panel content helpers */
+.sec-lbl{
+  font-size:10px;font-weight:500;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--t3);padding:7px 0 3px;
+}
+.sec-lbl:first-child{padding-top:3px}
+.seg-status{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:99px;font-size:12.5px;font-weight:500;
+  background:var(--s2);border:0.5px solid var(--b2);color:var(--t2);
+  margin-bottom:4px;
+}
+.mitem{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 9px;border:0.5px solid var(--b1);border-radius:var(--rad);
+  cursor:pointer;margin-bottom:4px;transition:all .1s;
+}
+.mitem:hover{background:var(--s2);border-color:var(--b2)}
+.mitem.sel{background:var(--teal-light);border-color:var(--teal-border)}
+.mitem-name{font-size:12.5px;font-weight:500;color:var(--t1)}
+.mitem.sel .mitem-name{color:var(--teal-text)}
+.mbadge{font-size:11px;padding:2px 7px;border-radius:99px;font-weight:500}
+.mbest{background:var(--teal-light);color:var(--teal-text)}
+.mna{background:var(--s2);color:var(--t3)}
+.mg{
+  display:flex;align-items:center;gap:7px;
+  font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;
+  padding:12px 4px 5px;
+}
+.mg::before{content:"";width:13px;height:2px;border-radius:2px;background:currentColor;flex-shrink:0}
+.mg:first-child{padding-top:4px}
+.mrow{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:5px 8px;border-radius:var(--rad);
+  cursor:pointer;font-size:12.5px;transition:background .1s;
+}
+.mrow:hover{background:var(--s2)}
+.mrow.active{background:var(--s2);box-shadow:inset 2px 0 0 var(--gc,var(--b3))}
+.ml{color:var(--t2);flex:1;min-width:0}
+.mv{font-weight:500;color:var(--t1);text-align:right;min-width:58px;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.mdiv{height:0.5px;background:var(--b1);margin:4px 8px}
+.slrow{display:flex;align-items:center;gap:8px;padding:4px 0}
+.sl-l{font-size:12.5px;color:var(--t2);min-width:60px}
+.sl-v{font-size:12.5px;font-weight:500;min-width:54px;text-align:right;color:var(--t1);flex-shrink:0;white-space:nowrap}
+input[type=range]{
+  -webkit-appearance:none;flex:1;min-width:0;height:3px;   /* min-width:0 -> shrinks so the value never gets clipped */
+  background:var(--b2);border-radius:2px;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:12px;height:12px;
+  border-radius:50%;background:var(--t1);cursor:pointer;
+}
+select{
+  flex:1;background:var(--s2);color:var(--t1);
+  border:0.5px solid var(--b2);border-radius:var(--rad);
+  padding:5px 8px;font-size:12.5px;outline:none;
+  cursor:pointer;font-family:inherit;
+}
+.pi-row{
+  display:flex;justify-content:space-between;padding:5px 8px;
+  border-bottom:0.5px solid var(--b1);font-size:12.5px;
+}
+.pi-row:last-child{border-bottom:none}
+.pi-l{color:var(--t2)}
+.pi-row span:last-child{font-variant-numeric:tabular-nums}
+/* compact the 3D-patch panel so it all fits, rigidly, with no scrollbar */
+#rp5 .rp-scroll{overflow:hidden}
+#rp5 .sec-lbl{padding:6px 0 2px}
+#rp5 .slrow{padding:2px 0}
+#rp5 .pi-row{padding:3px 8px}
+
+/* toast */
+#toast{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(6px);
+  background:var(--s2);border:0.5px solid var(--b2);border-radius:var(--rad);
+  padding:8px 16px;font-size:13px;color:var(--t1);
+  opacity:0;transition:all .18s;pointer-events:none;white-space:nowrap;z-index:9999;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* loading */
+#loading{
+  position:fixed;inset:0;background:#111111;     /* fully opaque -> occludes any compositor artefacts behind */
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  z-index:9998;opacity:0;pointer-events:none;     /* instant show/hide: no fade that lets the page peek through */
+}
+#loading.show{opacity:1;pointer-events:all}
+.spinner{width:26px;height:26px;border:2px solid var(--b2);border-top-color:var(--t1);border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── modern minimal model-loading overlay (lazy SAM) ── */
+#samld{
+  position:fixed;inset:0;z-index:9997;
+  display:flex;align-items:center;justify-content:center;
+  background:#0c0c0c;             /* fully opaque -> covers CPU-load compositor checkerboarding */
+  opacity:0;pointer-events:none;  /* instant show/hide (no fade peek during heavy SAM load) */
+}
+#samld.show{opacity:1;pointer-events:all}
+.samld-card{
+  width:300px;display:flex;flex-direction:column;align-items:center;
+  padding:28px 30px 24px;
+}
+.samld-title{font-size:13px;font-weight:500;color:var(--t2);letter-spacing:.2px;margin-bottom:18px}
+.samld-pct{display:flex;align-items:flex-start;color:var(--t1);line-height:1;margin-bottom:20px}
+.samld-pct #samldPct{font-size:52px;font-weight:300;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.samld-pctsym{font-size:20px;font-weight:300;color:var(--t2);margin-top:5px;margin-left:3px}
+.samld-track{width:100%;height:3px;border-radius:99px;background:var(--s3);overflow:hidden}
+/* fill animates via transform: scaleX (GPU-composited) — never via width (layout). */
+.samld-fill{
+  height:100%;width:100%;border-radius:99px;
+  transform:scaleX(0);transform-origin:left center;will-change:transform;
+  background:linear-gradient(90deg,var(--teal-dark),var(--teal));
+}
+.samld-stage{font-size:12px;color:var(--t3);margin-top:14px;min-height:16px;letter-spacing:.2px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- titlebar -->
+<div id="tb">
+  <div class="tb-l">
+    <div class="logo" id="applogo"><span class="logo-default">&#x2B21;</span></div>
+    <div class="app-name">Wound Annotator</div>
+  </div>
+  <div class="tb-r">
+    <button class="tbbtn" onclick="doBrowse()">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Open image
+    </button>
+    <button class="tbbtn" onclick="saveRes()">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save results
+    </button>
+    <button class="tbbtn" onclick="saveGT()">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 14l4-4 5 5 3-3 6 6"/></svg>
+      Save GT mask
+    </button>
+    <div class="stpill"><div class="sd" id="sd"></div><span id="st">Waiting&hellip;</span></div>
+  </div>
+</div>
+
+<!-- tabbar -->
+<div id="tabbar">
+  <div class="tab active" id="tab0" onclick="go(0)"><div class="tn" id="tn0">1</div><span>Image</span></div>
+  <div class="tab locked" id="tab1" onclick="go(1)"><div class="tn" id="tn1">2</div><span>Calibration</span></div>
+  <div class="tab locked" id="tab2" onclick="go(2)"><div class="tn" id="tn2">3</div><span>Manual seg</span></div>
+  <div class="tab locked" id="tab3" onclick="go(3)"><div class="tn" id="tn3">4</div><span>Auto seg</span></div>
+  <div class="tab locked" id="tab4" onclick="go(4)"><div class="tn" id="tn4">5</div><span>Metrics</span></div>
+  <div class="tab locked" id="tab5" onclick="go(5)"><div class="tn" id="tn5">6</div><span>3D patch</span></div>
+</div>
+
+<!-- body -->
+<div id="body">
+
+  <!-- canvas zone -->
+  <div id="czone">
+
+    <!-- toolbar -->
+    <div id="ctoolbar">
+      <div class="ct on" id="ct-cur" title="Point prompt">&#10011;</div>
+      <div class="ct" title="Box prompt">&#9645;</div>
+      <div class="ctsep"></div>
+      <div class="ct" title="Zoom in" onclick="zoomStep(1.18)">&#xFF0B;</div>
+      <div class="ct" title="Zoom out" onclick="zoomStep(0.85)">&#xFF0D;</div>
+      <div class="ct" title="Fit" onclick="resetView()">&#10150;</div>
+      <div class="ctsep"></div>
+      <div class="ct" id="ct-undo" title="Undo (Ctrl+Z)" onclick="sUndo()" style="display:none">&#8617;</div>
+      <div class="ct" id="ct-redo" title="Redo (Ctrl+Y)" onclick="sRedo()" style="display:none">&#8618;</div>
+      <div class="ct" id="ct-reset" title="Reset contour" onclick="sReset()" style="display:none;color:var(--red)">&#8856;</div>
+      <span class="cthint" id="cthint"></span>
+    </div>
+
+    <!-- page 0: drop zone -->
+    <div id="p0wrap">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:24px">
+        <div class="dz-row">
+          <div class="dz" id="dzd"
+            ondragover="event.preventDefault();event.dataTransfer.dropEffect='copy';this.classList.add('dzover')"
+            ondragleave="this.classList.remove('dzover')"
+            ondrop="this.classList.remove('dzover');onDrop(event)">
+            <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            <div class="dz-lbl">Drag &amp; drop<br>image here</div>
+            <div class="dz-sub">JPG &middot; PNG &middot; BMP &middot; TIFF</div>
+          </div>
+          <div class="dz" onclick="doBrowse()">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div class="dz-lbl">Browse<br>image file&hellip;</div>
+            <div class="dz-sub">or click here</div>
+          </div>
+        </div>
+        <div id="ftag" style="display:none">
+          <div class="ftag">&#10003; <span id="fname">&mdash;</span></div>
+        </div>
+        <div id="imgstats" style="display:none">
+          <div class="statgrid">
+            <div class="scard"><div class="sc-l">Width</div><div class="sc-v" id="iw">&mdash;</div><div class="sc-s">pixels</div></div>
+            <div class="scard"><div class="sc-l">Height</div><div class="sc-v" id="ih">&mdash;</div><div class="sc-s">pixels</div></div>
+            <div class="scard" style="grid-column:1/-1">
+              <div class="sc-l">SAM model</div>
+              <div class="sc-v" id="samst" style="font-size:14px">Loading&hellip;</div>
+              <div class="sc-s">ViT-B checkpoint</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- pages 1-4: shared canvas -->
+    <div id="canvaswrap" style="display:none;flex:1;min-height:0;flex-direction:column">
+      <div id="cwrap" style="flex:1;min-height:0;background:var(--bg);position:relative;overflow:hidden">
+        <img id="baseimg" alt=""/>
+        <img id="ovimg" alt="" style="display:none"/>
+        <canvas id="mc"></canvas>
+        <div class="covl" id="covl" style="display:none"></div>
+        <div class="czoom">Ctrl+scroll &middot; Middle-drag pan &middot; Dbl-click fit</div>
+      </div>
+    </div>
+
+    <!-- page 5: 3D views -->
+    <div id="p5wrap">
+      <div class="vcard">
+        <div class="vlbl g">Manual (GT)</div>
+        <div class="vimg"><div class="vwait" id="w3g">Waiting for segmentation&hellip;</div><canvas id="cv3g" class="v3d" style="display:none"></canvas><div class="v3dhint" id="h3g" style="display:none">drag rotate &middot; scroll zoom</div></div>
+      </div>
+      <div class="vcard">
+        <div class="vlbl r">Auto (SAM)</div>
+        <div class="vimg"><div class="vwait" id="w3a">Waiting for segmentation&hellip;</div><canvas id="cv3a" class="v3d" style="display:none"></canvas><div class="v3dhint" id="h3a" style="display:none">drag rotate &middot; scroll zoom</div></div>
+      </div>
+    </div>
+
+  </div><!-- /czone -->
+
+  <!-- right panel -->
+  <div id="rp">
+
+    <!-- panel 0 -->
+    <div id="rp0" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="rp-hd"><div class="rp-title">Getting started</div><div class="rp-sub">Load a wound image to begin</div></div>
+      <div class="rp-scroll">
+        <div class="sec-lbl">Workflow</div>
+        <div style="font-size:12.5px;color:var(--t2);line-height:2">1&nbsp; Load image<br>2&nbsp; Calibrate scale<br>3&nbsp; Draw manual GT<br>4&nbsp; Run auto segmentation<br>5&nbsp; Compare metrics<br>6&nbsp; Generate 3D patch</div>
+        <div class="sec-lbl">Supported methods</div>
+        <div style="font-size:12px;color:var(--t3);line-height:1.9">SAM (ViT-B / ViT-H)<br>SAM2 &middot; MedSAM<br>GrabCut &middot; Watershed<br>U-Net (fine-tuned)</div>
+      </div>
+      <div class="rp-foot">
+        <div class="rp-nav">
+          <button class="btn-back" disabled>&#8592; Back</button>
+          <button class="btn-confirm" id="btn0" onclick="go(1)" disabled>Next &#8594;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- panel 1 -->
+    <div id="rp1" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="rp-hd"><div class="rp-title">Scale calibration</div><div class="rp-sub">Click 2 points on a known distance</div></div>
+      <div class="rp-scroll">
+        <div class="sec-lbl">Reference length</div>
+        <div style="display:flex;gap:7px;align-items:center">
+          <input type="number" id="calLen" placeholder="e.g. 50.0" step="0.1"
+            style="flex:1;background:var(--s2);color:var(--t1);border:1px solid var(--b2);border-radius:var(--rad);padding:7px 9px;font-size:13px;outline:none;font-family:inherit"/>
+          <span style="font-size:13px;color:var(--t2)">mm</span>
+        </div>
+        <button class="btn-outline" style="margin-top:4px" onclick="setScale()">&#10003; Set scale</button>
+        <div id="calok" style="display:none;align-items:center;gap:5px;color:var(--teal-border);font-size:13px;font-weight:500;padding:4px 0">
+          &#10003; <span id="calval">&mdash;</span>
+        </div>
+        <div class="sec-lbl">Tip</div>
+        <div style="font-size:12px;color:var(--t3);line-height:1.6">Use a ruler, coin, or marker of known size as reference.</div>
+        <button class="btn-outline" style="margin-top:6px" onclick="skipScale()">Skip (use pixels)</button>
+      </div>
+      <div class="rp-foot">
+        <div class="rp-nav">
+          <button class="btn-back" onclick="go(0)">&#8592; Back</button>
+          <button class="btn-confirm" onclick="confirmCal()">Confirm &#8594;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- panel 2 -->
+    <div id="rp2" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="rp-hd"><div class="rp-title">Manual segmentation</div><div class="rp-sub">Draw the wound boundary (GT)</div></div>
+      <div class="rp-scroll">
+        <div class="seg-status" id="segst">Click to add points</div>
+        <div class="sec-lbl">Controls</div>
+        <div style="font-size:12px;color:var(--t3);line-height:2.1">
+          <span style="color:var(--teal-border)">Left-click</span> &mdash; add point<br>
+          <span style="color:var(--amber)">Drag</span> &mdash; move point<br>
+          <span style="color:var(--red)">Right-click</span> &mdash; remove point<br>
+          Click <span style="color:var(--teal-border)">green &#10011;</span> / <span style="color:var(--teal-border)">Close shape</span> / <span style="color:var(--t3)">Enter</span> &mdash; close<br>
+          <span style="color:var(--t3)">Ctrl+Z / Y</span> &mdash; undo / redo
+        </div>
+        <button class="btn-confirm" id="closeBtn" style="flex:0 0 auto;width:100%;min-height:0;margin-top:10px" onclick="closeContour()" disabled>&#10003; Close shape</button>
+        <button class="btn-danger" style="margin-top:7px" onclick="sReset()">&#8856; Reset contour</button>
+        <button class="btn-outline" style="margin-top:9px" title="High-contrast images (bright object on dark background): segment automatically with SAM, no manual tracing" onclick="autoPrompt()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><line x1="4" y1="20" x2="13" y2="11"/><path d="M16.5 3v4M14.5 5h4"/><path d="M14 9.5l1 1"/></svg>Auto-segment</button>
+      </div>
+      <div class="rp-foot">
+        <div class="rp-nav">
+          <button class="btn-back" onclick="go(1)">&#8592; Back</button>
+          <button class="btn-confirm" id="confBtn" onclick="runPipeline()" disabled>Confirm &amp; run &#8594;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- panel 3 -->
+    <div id="rp3" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="rp-hd"><div class="rp-title">Segmentation method</div><div class="rp-sub">Select method to compare vs. GT</div></div>
+      <div class="rp-scroll">
+        <div class="sec-lbl">Available methods</div>
+        <div class="mitem sel" onclick="selMethod(this,'SAM (ViT-B)')"><span class="mitem-name">SAM (ViT-B)</span><span class="mbadge mbest">Active</span></div>
+        <div class="mitem" onclick="selMethod(this,'GrabCut')"><span class="mitem-name">GrabCut</span><span class="mbadge mna">Ready</span></div>
+        <div class="mitem" onclick="selMethod(this,'Watershed')"><span class="mitem-name">Watershed</span><span class="mbadge mna">Ready</span></div>
+      </div>
+      <div class="rp-foot">
+        <div class="rp-nav">
+          <button class="btn-back" onclick="go(2)">&#8592; Back</button>
+          <button class="btn-confirm" onclick="go(4)">Metrics &#8594;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- panel 4 -->
+    <div id="rp4" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="rp-hd"><div class="rp-title">Metrics</div><div class="rp-sub">Click a row to see its overlay</div></div>
+      <div class="rp-scroll" id="metPanel">
+        <!-- filled by JS after autoSegDone -->
+      </div>
+      <div class="rp-foot">
+        <button class="btn-outline" onclick="saveRes()" style="margin-bottom:2px">&#8595; Export JSON</button>
+        <div class="rp-nav">
+          <button class="btn-back" onclick="go(3)">&#8592; Back</button>
+          <button class="btn-confirm" onclick="go(5)">3D patch &#8594;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- panel 5 -->
+    <div id="rp5" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="rp-hd"><div class="rp-title">3D patch</div><div class="rp-sub">Adjust parameters and export STL</div></div>
+      <div class="rp-scroll">
+        <div class="sec-lbl">Parameters</div>
+        <div class="slrow">
+          <span class="sl-l">Thickness</span>
+          <input type="range" id="slT" min="1" max="250" value="30" step="1" oninput="onSlInput()">
+          <span class="sl-v" id="svT">3.0 mm</span>
+        </div>
+        <div class="slrow">
+          <span class="sl-l">Edge size</span>
+          <input type="range" id="slE" min="0" max="30" value="0" step="1" oninput="onSlInput()">
+          <span class="sl-v" id="svE">0.0 mm</span>
+        </div>
+        <div class="slrow" title="Perilesional offset — dilate the wound outward by a constant margin before building the patch">
+          <span class="sl-l">Offset</span>
+          <input type="range" id="slO" min="0" max="200" value="0" step="1" oninput="onSlInput()">
+          <span class="sl-v" id="svO">0.0 mm</span>
+        </div>
+        <div class="slrow" style="margin-top:4px">
+          <span class="sl-l">Edge mode</span>
+          <select id="selM" onchange="onSlInput()">
+            <option>Chamfer 45&deg;</option>
+            <option>Fillet (arc)</option>
+          </select>
+        </div>
+        <div class="sec-lbl">GT patch</div>
+        <div class="pi-row"><span class="pi-l">Area</span><span id="gA">&mdash;</span></div>
+        <div class="pi-row"><span class="pi-l">Perimeter</span><span id="gP">&mdash;</span></div>
+        <div class="pi-row"><span class="pi-l">Volume</span><span id="gV">&mdash;</span></div>
+        <div class="sec-lbl">Auto patch</div>
+        <div class="pi-row"><span class="pi-l">Area</span><span id="aA">&mdash;</span></div>
+        <div class="pi-row"><span class="pi-l">Perimeter</span><span id="aP">&mdash;</span></div>
+        <div class="pi-row"><span class="pi-l">Volume</span><span id="aV">&mdash;</span></div>
+      </div>
+      <div class="rp-foot">
+        <button class="btn-confirm" onclick="exportSTL()" style="margin-bottom:2px">&#8595; Export STL</button>
+        <div class="rp-nav">
+          <button class="btn-back" onclick="go(4)">&#8592; Back</button>
+          <button class="btn-confirm" disabled>Done &#10003;</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /rp -->
+</div><!-- /body -->
+</div><!-- /app -->
+
+<div id="perfhud" style="display:none;position:fixed;top:96px;right:252px;z-index:10000;background:#0f0f0fee;border:1px solid var(--b2);border-radius:6px;padding:8px 11px;font:11px/1.55 Consolas,'Courier New',monospace;color:var(--t1);white-space:pre;pointer-events:none"></div>
+<div id="toast"></div>
+<div id="loading"><div class="spinner"></div><div style="font-size:12.5px;color:var(--t3);margin-top:6px" id="ldT">Loading&hellip;</div></div>
+<div id="samld">
+  <div class="samld-card">
+    <div class="samld-title">Loading segmentation model</div>
+    <div class="samld-pct"><span id="samldPct">0</span><span class="samld-pctsym">%</span></div>
+    <div class="samld-track"><div class="samld-fill" id="samldFill"></div></div>
+    <div class="samld-stage" id="samldStage">Preparing&hellip;</div>
+  </div>
+</div>
+
+<script>
+// ── bridge ──────────────────────────────────────────────────────────────────
+let B=null,Br=false,Bq=[];
+function be(m,a,cb){Br&&B?_bc(m,a,cb):Bq.push({m,a,cb})}
+function _bc(m,a,cb){if(!B[m]){console.error('no:',m);return}
+  a===undefined?B[m](cb||function(){}):B[m](a,cb||function(){})}
+function _bfl(){while(Bq.length){const x=Bq.shift();_bc(x.m,x.a,x.cb)}}
+function _bi(){
+  if(typeof qt==='undefined'||!qt.webChannelTransport){setTimeout(_bi,80);return}
+  new QWebChannel(qt.webChannelTransport,function(ch){
+    B=ch.objects.backend;Br=true;
+    try{
+      B.imageReady.connect(onIR);B.modelReady.connect(onMR);
+      B.statusUpdate.connect(onSU);B.error.connect(onER);
+      B.scaleSet.connect(onSS);B.autoSegDone.connect(onASD);
+      B.samProgress.connect(onSamProgress);
+    }catch(e){console.warn(e)}
+    setSt('Ready','ok');_bfl();
+  });
+}
+_bi();
+
+// ── state ────────────────────────────────────────────────────────────────────
+let curP=0,iUrl=null,iW=0,iH=0;
+let calPts=[],view={z:1,tx:0,ty:0};
+let segPts=[],segCl=false,segSpl=[],segDr=-1,justPlaced=false;
+let autoUrl=null,metKey=null,metData={};
+let metCnt={},metOvImg=null,autoEl=null;   // cached contours / overlay-active flag / auto image
+let metOvCache={};                          // metric-key -> overlay PNG base64 (skip backend re-render)
+let _prof=false,_ovMs=0;                    // perf HUD on? / last overlay backend round-trip (ms)
+let _pst={n:0,sum:0,max:0,last:0},_fpsN=0,_fps=0,_fpsT0=0;   // redraw timing + fps counters
+const _RING=4000; let _ring=[],_ri=0;       // ring buffer of redraw samples (always-on, cheap)
+let _fr={last:0,on:false,end:0},_fring=[],_fri=0,_frKind='';   // real frame cadence (rAF deltas, incl. compositor)
+let _ovLog={};                              // metric-key -> backend overlay render ms (for the report)
+let _ovReq=new Set(),_ovReqT={};            // overlay keys already requested / their request time
+let samReady=false,_pendingRun=false,_pendingAutoPrompt=false;   // run / auto-prompt after SAM load
+let pxPerMm=null;                            // px/mm for the JS 3D mesh (null -> 1, i.e. px units)
+let _samTarget=0,_samShown=0,_samRAF=0,_samCreepT=null;   // loading-bar animator state
+let curMethod='SAM (ViT-B)';               // currently selected auto-seg method
+const AVAIL=['SAM (ViT-B)','GrabCut','Watershed'];   // implemented methods
+let iEl=null,splT=null,patchT=null;
+let _pan=null;                 // {sx,sy,tx,ty} while middle-button panning
+let _fast=false,_fastT=null;   // low-quality scaling during interaction -> smoother
+const SNAP=12;
+// Custom line-style "hand" cursor (teal, same look as the app icons) for grabbing points.
+// PNG (not SVG) so the embedded Chromium renders it reliably; falls back to grab.
+const GRAB_CUR='url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAACXBIWXMAABYlAAAWJQFJUiTwAAAFM0lEQVRIidWWXWwUVRTH//fOnZntzkzLdm23LR/SpCktAUuBgEYUDCQiNE0ggqhETDQxISHRZxMT8UVD4pOB+KCJ0WIkwIMPfGhEhVZbVEQLSFvQtrS0u7Td3dmZ2d35uj6U1qVfu9SY4HmYh5lz/79zzzlz7gX+x0YAyPNZNF9jiqJsoRJbTZWg5iVSva7rns5kMv0FLZ4nlGoLtJeKdm3cLa2t3UREQfZGkn3WZ9/WSb3Rw7qu9+QTEO4TSILBYGUwGNwW2LZul7xx5XYiUAYANBhYIC5fvMxuu/awSIUyURTDjuPcBuDOKFQoUdO0MKd8l9RQ00hkqUHatKKeVYaLna6Bjuz5q78qL295lYgCc4fGdBKQMv6tO3+Yn35zCrb7USqVGp2qV2iqVSKxg+r+pp2suqICADjnAADv5pDtdP7pctv1iSiAVZYWAygWQmq59saOiH7omA7gQwA8V5AWAGVasfa28tozu8ehHLBdn5DxZHGOCgCLiCwyAPBHdTP7fWcbOPeFqnCd1FDTqChKZKpoXrCiKFuKmtZvZTULHxp/QwCJ0Yn4aXlJEEAYwnjZvIFR3TrR2omMnQIAtqS8HMB9gwmV2GrpyZW1Ey/c3lh8gg8AVGIUgPBPu/C7T5Kb2mm9NCc4FAoVC1XhMiKxyV7wegbH7nHivJByTbM5F3HOCei8dP8d+L+0Bw4860TzEobt9Awaftr24bg82941RAhJ8oSVAQD7Wv8oIcTKB84dIExV1Sc4IY2ssrQKo3rcs91YbgT2hSt9zsWuc9kLV6IANhNCDAAnGWM/Jw+2vEnVQKmfNL/jnKcLBmua1hTYuuYFefOq7UQSg9zzXa8/djVz7rcfJ8Ht1zuoxw/phtEH4J0pWi9GAgE5ahimoiivFwQOhUIlvCq0UX567Q5CCQM4JwJlrLqiQX2lomHCmTPhNoDkLFpuNBqdOBAIIWS8jOOz1Z/qTAHAdd1KqbFmKaGE+boV099qeS/b0fU1PM/JF/lMRgSicJkpAODFDYMxlpoRTAhxueu6AEACksY1WbZazrUl3z/5gXd7rGtyx2bGlmV5zmBUVS0TaxdFCCECAHiDI3EAial+DABkWR62O7q65U0NaSKxouL9zfv0w19+wgdGz+vvftETWF+3xvc5vFjiUtQwzDwbXimtq6sHAD+VvuPeHOoxDCM+1UkAAMuybOb4BJmsKNYtXk5kUZVX1Syzu24lvIRxJtsfPU1iyfZUKtWKKcdbrpWUlISEkLan6NnHnyOCINqXb7Q6nb0nbdvunREMAI7j9LKo7vtm2suFOz0DvmDZfbqu/54P6nG+Vz3QvI+G1CqezsatI6eOphLJ45jhFnLPoLBtu3savLGmnutWEYklVVEURxzHSecGoKpqmSRJjwohbY96oHmfsDBcz33uWsfOf+70Drc4jjM4U6AzXX2IpmnN0oblO4M7NzwPgYoA5+61/h/SZy/95P41HOecp4Dx7hVrF0WkdXX14iNLHyOSGOQ+d7Nnfjlpnb74sWmaZ2fL0Gx3LqJpWhNbUb1N2fvUHlIkLZj4wB0vS1w3A0IJlwSFUDqZNZ7Oxq0TbSeyHdePm6b5FeYozawz2bbtbjqWijkd3aO0OOjSkFpKRBYgAmUQWQBMkCeGhJ9K37Ev32i1jpw66vQOt5im2Tabbr4dT1okElEMw9gAihVS3ZJqoSocolowCM65FzcMb3Ak7t4c6gFwxTCMdgCZfJoFgXN9VVUto5SWeJ6nAPDvTqREMpmc9p8+sPY3XOo66rhD1CgAAAAASUVORK5CYII=") 12 10, grab';
+
+// ── step config ──────────────────────────────────────────────────────────────
+const SCFG=[
+  {rp:'rp0',toolbar:false,hint:'',canvas:'p0',st:'Load an image to begin'},
+  {rp:'rp1',toolbar:true, hint:'Click 2 points on a known-length reference \u00b7 Ctrl+scroll zoom',canvas:'canvas',st:'Scale calibration'},
+  {rp:'rp2',toolbar:true, hint:'Left-click add \u00b7 Drag move \u00b7 Right-click remove \u00b7 click \u271a to close',canvas:'canvas',st:'Drawing GT\u2026'},
+  {rp:'rp3',toolbar:false,hint:'',canvas:'canvas',st:'SAM done \u2713'},
+  {rp:'rp4',toolbar:true, hint:'Click any metric row to overlay it on the canvas',canvas:'canvas',st:'Metrics ready'},
+  {rp:'rp5',toolbar:false,hint:'',canvas:'p5',st:'Ready to export'},
+];
+
+// ── navigation ───────────────────────────────────────────────────────────────
+function go(idx){
+  if(idx<0||idx>5)return;
+  if(idx>0&&!iUrl){toast('Load an image first');return}
+  curP=idx;
+  for(let i=0;i<6;i++){
+    const t=document.getElementById('tab'+i),n=document.getElementById('tn'+i);
+    t.className='tab';n.textContent=i+1;
+    if(i<idx){t.classList.add('done');n.innerHTML='<span style="font-size:10px">&#10003;</span>'}
+    else if(i===idx){t.classList.add('active')}
+    else{t.classList.add('locked')}
+  }
+  ['rp0','rp1','rp2','rp3','rp4','rp5'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById(SCFG[idx].rp).style.display='flex';
+  // canvas switching
+  document.getElementById('p0wrap').style.display='none';
+  document.getElementById('canvaswrap').style.display='none';
+  document.getElementById('p5wrap').style.display='none';
+  if(SCFG[idx].canvas==='p0'){document.getElementById('p0wrap').style.display='flex'}
+  else if(SCFG[idx].canvas==='p5'){document.getElementById('p5wrap').style.display='flex'}
+  else{
+    const cw=document.getElementById('canvaswrap');
+    cw.style.display='flex';cw.style.flex='1';cw.style.minHeight='0';
+    setTimeout(()=>initCanvas(idx),20);
+  }
+  // toolbar
+  document.getElementById('ctoolbar').style.display=SCFG[idx].toolbar?'flex':'none';
+  document.getElementById('cthint').textContent=SCFG[idx].hint;
+  ['ct-undo','ct-redo','ct-reset'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display=idx===2?'flex':'none';
+  });
+  setSt(SCFG[idx].st,'ok');
+  if(idx===5)patch3DEnter();
+  else if(typeof v3dStop==='function')v3dStop();   // pause the 3D render loop off page 5
+}
+
+// ── status/toast/loading ──────────────────────────────────────────────────────
+function setSt(m,t){document.getElementById('st').textContent=m;document.getElementById('sd').className='sd'+(t?' '+t:'')}
+let _tt=null;
+function toast(m,d=2800){
+  const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');
+  clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),d);
+}
+function showLd(m){document.getElementById('ldT').textContent=m||'Loading\u2026';document.getElementById('loading').classList.add('show')}
+function hideLd(){document.getElementById('loading').classList.remove('show')}
+
+// ── backend signals ───────────────────────────────────────────────────────────
+function onIR(url){
+  iUrl=url;iEl=null;hideLd();
+  // new image -> reset the whole pipeline state & UI (calibration must restart)
+  calPts=[];view={z:1,tx:0,ty:0};
+  segPts=[];segCl=false;segSpl=[];segDr=-1;
+  autoUrl=null;metKey=null;metData={};metCnt={};metOvImg=null;autoEl=null;metOvCache={};_ovReq=new Set();_ovReqT={};
+  samReady=false;_pendingRun=false;pxPerMm=null;   // new image: SAM must re-encode before next run
+  const _oi=document.getElementById('ovimg');if(_oi){_oi.style.display='none';_oi.removeAttribute('src');}
+  const _ck=document.getElementById('calok');if(_ck)_ck.style.display='none';
+  const _cl=document.getElementById('calLen');if(_cl)_cl.value='';
+  const _mp=document.getElementById('metPanel');if(_mp)_mp.innerHTML='';
+  if(typeof updSS==='function')updSS();
+  be('getImageSize',undefined,function(r){
+    const s=JSON.parse(r);iW=s.w;iH=s.h;
+    document.getElementById('iw').textContent=iW;
+    document.getElementById('ih').textContent=iH;
+    document.getElementById('imgstats').style.display='block';
+    // Feed the CSS image layer (sized to the real pixels; scaled via transform).
+    const _bi=document.getElementById('baseimg');
+    if(_bi){_bi.style.width=iW+'px';_bi.style.height=iH+'px';_bi.src=iUrl;}
+    if(curP===0)go(1);                       // image ready -> straight to calibration, no SAM wait
+  });
+  document.getElementById('ftag').style.display='block';
+  document.getElementById('btn0').disabled=false;
+  document.getElementById('tab1').classList.remove('locked');
+  // SAM is now loaded lazily (only when auto-seg actually runs) -> image opens fast.
+  const _ss=document.getElementById('samst');_ss.textContent='Loads on first run';_ss.style.color='var(--t2)';
+  setSt('Image loaded \u2713','ok');
+}
+// modelReady arrives after a lazy SAM load finishes (success or not).
+function onMR(ok){
+  hideSamLoader();
+  if(ok){
+    samReady=true;
+    const el=document.getElementById('samst');el.textContent='\u2713 Ready';el.style.color='var(--teal-border)';
+    if(_pendingRun){_pendingRun=false;runSeg();}
+    if(_pendingAutoPrompt){_pendingAutoPrompt=false;showLd('Auto-prompt (SAM)\u2026');setSt('Running\u2026','busy');be('runAutoPrompt',undefined,function(){});}
+  }else{
+    _pendingRun=false;_pendingAutoPrompt=false;setSt('SAM unavailable','');toast('\u26a0 SAM not available',3800);
+  }
+}
+// Backend SAM-load progress -> drive the loading bar.
+function onSamProgress(pct,stage){
+  if(pct>_samTarget)_samTarget=pct;
+  if(stage)document.getElementById('samldStage').textContent=stage;
+  if(stage&&stage.toLowerCase().indexOf('encod')>=0&&!_samCreepT){
+    // 'Encoding' is an opaque slow step: creep the target up so it never looks stuck.
+    _samCreepT=setInterval(()=>{if(_samTarget<94)_samTarget+=1;},230);
+  }
+  if(pct>=100){if(_samCreepT){clearInterval(_samCreepT);_samCreepT=null;}_samTarget=100;}
+}
+function showSamLoader(){
+  _samTarget=0;_samShown=0;
+  if(_samCreepT){clearInterval(_samCreepT);_samCreepT=null;}
+  document.getElementById('samldStage').textContent='Preparing\u2026';
+  document.getElementById('samldPct').textContent='0';
+  document.getElementById('samldFill').style.transform='scaleX(0)';
+  document.getElementById('samld').classList.add('show');
+  if(!_samRAF)_samRAF=requestAnimationFrame(_samTick);
+}
+function hideSamLoader(){
+  document.getElementById('samld').classList.remove('show');
+  if(_samRAF){cancelAnimationFrame(_samRAF);_samRAF=0;}
+  if(_samCreepT){clearInterval(_samCreepT);_samCreepT=null;}
+}
+function _samTick(){
+  _samShown+=(_samTarget-_samShown)*0.14;
+  if(_samTarget-_samShown<0.05)_samShown=_samTarget;
+  document.getElementById('samldPct').textContent=Math.round(_samShown);
+  document.getElementById('samldFill').style.transform='scaleX('+(_samShown/100).toFixed(4)+')';
+  _samRAF=requestAnimationFrame(_samTick);
+}
+function onSU(m){setSt(m,m.includes('\u2713')?'ok':'busy')}
+function onER(m){hideLd();hideSamLoader();_pendingRun=false;setSt('Error','err');toast('\u26a0 '+m,4000)}
+function onSS(v){
+  document.getElementById('calok').style.display='flex';
+  document.getElementById('calval').textContent=v.toFixed(2)+' px/mm';
+  document.getElementById('tab2').classList.remove('locked');
+  toast('Scale set: '+v.toFixed(2)+' px/mm \u2713');
+}
+function onASD(url){
+  autoUrl=url;hideLd();hideSamLoader();setSt('Auto seg done \u2713','ok');
+  ['tab3','tab4','tab5'].forEach(id=>document.getElementById(id).classList.remove('locked'));
+  autoEl=null;metOvImg=false;metOvCache={};_ovReq=new Set();_ovReqT={};   // new masks invalidate cached overlays
+  be('getMetrics',undefined,function(r){metData=JSON.parse(r);buildMetPanel()});
+  // NB: no eager prefetch — rendering all overlays in the background floods the
+  // worker (GIL/CPU) right when the user starts interacting and causes the frame
+  // stutter. Overlays now render lazily on first click (async + pre-warmed).
+  // Fetch contours FIRST, then navigate/redraw \u2014 guarantees metCnt is ready
+  // before dAuto runs, so the auto (red) contour always shows.
+  be('getContours',undefined,function(r){
+    metCnt=JSON.parse(r);pxPerMm=metCnt.s||null;
+    if(curP===3){redraw();setTimeout(redraw,40);} else {go(3);}
+  });
+}
+// ── 3D patch viewer (Three.js) ────────────────────────────────────────────────
+// The extrusion mesh is built in JS straight from the contour, so thickness/edge
+// changes update at 60fps with no backend round-trip (smooth, no artefacts) and
+// the camera is NOT touched on updates -> rotation is preserved.
+const V3D={};                       // side -> {canvas,renderer,scene,camera,controls,group,framed}
+let _v3dRAF=0,_v3dOn=false,_pc={};  // _pc: cached centred contour per side
+const V3DCOL={gt:{s:0x1ec869,e:0x0a5630},auto:{s:0xfb3636,e:0x751717}};   // vivid green / red
+const N_ARC3D=20;
+
+// Centred contour (mm) + outward dirs as FLAT arrays — computed once per contour
+// (cached), so dragging the sliders allocates almost nothing (no micro-stutter).
+function prepContour(cpx,s){
+  const N=cpx.length, c=new Float32Array(2*N), dir=new Float32Array(2*N);
+  let mx=0,my=0;for(const p of cpx){mx+=p.x;my+=p.y;}mx/=N;my/=N;
+  for(let i=0;i<N;i++){c[2*i]=(cpx[i].x-mx)/s;c[2*i+1]=(cpx[i].y-my)/s;}
+  for(let i=0;i<N;i++){const x=c[2*i],y=c[2*i+1],L=Math.hypot(x,y)+1e-9;dir[2*i]=x/L;dir[2*i+1]=y/L;}
+  return {c,dir,N};
+}
+// Build the extrusion mesh (Y-up). Vertices are SPLIT at hard edges: the top and
+// bottom caps own their boundary ring (normals straight up/down -> perfectly flat,
+// no radial shading artefact), the chamfer's two faces are split, while the fillet
+// is one smooth strip. loops[] are the visible edges incl. fillet tangent rings.
+function buildPatchGeo(c,dir,N,t,edgeVal,mode){
+  const r=Math.min(edgeVal,t*0.99), pos=[],idx=[], loops=[];
+  const add=(x,y,z)=>{const k=pos.length/3;pos.push(x,z,-y);return k;};   // plane(x,y)+height z -> Y-up
+  const ring=(fx,fy,z)=>{const a=new Array(N);for(let i=0;i<N;i++)a[i]=add(fx(i),fy(i),z);return a;};
+  const loopAt=(fx,fy,z)=>{const a=new Float32Array(3*N);for(let i=0;i<N;i++){a[3*i]=fx(i);a[3*i+1]=z;a[3*i+2]=-fy(i);}loops.push(a);};
+  const cap=(fx,fy,z,up)=>{const R=ring(fx,fy,z),ctr=add(0,0,z);
+    for(let i=0;i<N;i++){const j=(i+1)%N;if(up)idx.push(ctr,R[i],R[j]);else idx.push(ctr,R[j],R[i]);}};
+  const band=(fxA,fyA,zA,fxB,fyB,zB)=>{const a=ring(fxA,fyA,zA),b=ring(fxB,fyB,zB);
+    for(let i=0;i<N;i++){const j=(i+1)%N;idx.push(a[i],b[i],a[j], b[i],b[j],a[j]);}};   // consistent winding
+  const cx=i=>c[2*i], cy=i=>c[2*i+1];
+  if(r<=1e-6){
+    cap(cx,cy,t,true); cap(cx,cy,0,false); band(cx,cy,t,cx,cy,0);
+    loopAt(cx,cy,t); loopAt(cx,cy,0);
+  }else if(mode.indexOf('Chamfer')>=0){
+    const ix=i=>c[2*i]-dir[2*i]*r, iy=i=>c[2*i+1]-dir[2*i+1]*r;     // inner ring
+    cap(cx,cy,t,true); cap(ix,iy,0,false);
+    band(cx,cy,t,cx,cy,r); band(cx,cy,r,ix,iy,0);                   // vertical wall + chamfer face (split -> crisp)
+    loopAt(cx,cy,t); loopAt(cx,cy,r); loopAt(ix,iy,0);
+  }else{
+    const rings=[ring(cx,cy,t), ring(cx,cy,r)]; let ifx=cx, ify=cy;
+    for(let k=1;k<=N_ARC3D;k++){const th=k/N_ARC3D*(Math.PI/2),ri=r*(1-Math.cos(th)),zv=r*(1-Math.sin(th));
+      const fx=i=>c[2*i]-dir[2*i]*ri, fy=i=>c[2*i+1]-dir[2*i+1]*ri;
+      rings.push(ring(fx,fy,zv)); if(k===N_ARC3D){ifx=fx;ify=fy;}}
+    for(let g=0;g<rings.length-1;g++)for(let i=0;i<N;i++){const j=(i+1)%N;     // smooth strip (shared verts)
+      idx.push(rings[g][i],rings[g+1][i],rings[g][j], rings[g+1][i],rings[g+1][j],rings[g][j]);}
+    cap(cx,cy,t,true); cap(ifx,ify,0,false);
+    loopAt(cx,cy,t); loopAt(cx,cy,r); loopAt(ifx,ify,0);            // top edge + fillet UPPER + lower tangents
+  }
+  return {pos:new Float32Array(pos),idx:new Uint32Array(idx),loops};
+}
+function meshVolume(pos,idx){
+  let v=0;
+  for(let f=0;f<idx.length;f+=3){
+    const a=idx[f]*3,b=idx[f+1]*3,c=idx[f+2]*3;
+    v+=pos[a]*(pos[b+1]*pos[c+2]-pos[b+2]*pos[c+1])
+      -pos[a+1]*(pos[b]*pos[c+2]-pos[b+2]*pos[c])
+      +pos[a+2]*(pos[b]*pos[c+1]-pos[b+1]*pos[c]);
+  }
+  return Math.abs(v)/6;
+}
+// soft gradient environment -> studio/CAD-like sheen on the surface
+function v3dEnv(renderer){
+  const cnv=document.createElement('canvas');cnv.width=16;cnv.height=128;
+  const g=cnv.getContext('2d'),grd=g.createLinearGradient(0,0,0,128);
+  grd.addColorStop(0,'#eef3f6');grd.addColorStop(0.5,'#8b969e');grd.addColorStop(1,'#23272b');
+  g.fillStyle=grd;g.fillRect(0,0,16,128);
+  const tex=new THREE.CanvasTexture(cnv);tex.mapping=THREE.EquirectangularReflectionMapping;
+  const pm=new THREE.PMREMGenerator(renderer);const env=pm.fromEquirectangular(tex).texture;
+  tex.dispose();pm.dispose();return env;
+}
+function v3dInit(side){
+  if(V3D[side])return V3D[side];
+  if(typeof THREE==='undefined')return null;
+  const canvas=document.getElementById(side==='gt'?'cv3g':'cv3a');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  // sRGB output for correct colours, but NO ACES tone-mapping (it washes the
+  // colours out to pastel) -> keep them vivid and the surface reads as solid/opaque.
+  try{renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.NoToneMapping;}catch(e){}
+  const scene=new THREE.Scene();
+  try{scene.environment=v3dEnv(renderer);}catch(e){}
+  const camera=new THREE.PerspectiveCamera(35,1,0.05,100000);
+  const controls=new THREE.OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true;controls.dampingFactor=0.1;controls.rotateSpeed=0.9;controls.panSpeed=0.7;
+  controls.enableZoom=false;   // zoom is Ctrl+wheel only (handled below), like the image pages
+  try{controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.ROTATE,RIGHT:THREE.MOUSE.PAN};}catch(e){}
+  // Mouse scheme matching the rest of the app:
+  //   middle-drag = rotate · Ctrl+middle-drag = pan · Ctrl+wheel = zoom (plain wheel does nothing)
+  renderer.domElement.addEventListener('pointerdown',e=>{
+    if(e.button===1){controls.mouseButtons.MIDDLE=e.ctrlKey?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;e.preventDefault();}
+  },true);
+  renderer.domElement.addEventListener('wheel',e=>{
+    if(!e.ctrlKey)return;
+    e.preventDefault();
+    const off=camera.position.clone().sub(controls.target);
+    off.multiplyScalar(e.deltaY>0?1.12:0.892);            // forward = zoom in, back = zoom out
+    if(off.length()<0.05)off.setLength(0.05);
+    camera.position.copy(controls.target).add(off);
+    controls.update();
+  },{passive:false});
+  scene.add(new THREE.HemisphereLight(0xffffff,0x35353c,0.55));
+  const k=new THREE.DirectionalLight(0xffffff,0.85);k.position.set(1.4,2.2,1.8);scene.add(k);
+  const f=new THREE.DirectionalLight(0xffffff,0.28);f.position.set(-1.6,0.4,-1.3);scene.add(f);
+  const rim=new THREE.DirectionalLight(0xffffff,0.32);rim.position.set(-0.5,1.2,-2);scene.add(rim);
+  const group=new THREE.Group();scene.add(group);
+  V3D[side]={canvas,renderer,scene,camera,controls,group,framed:false};
+  return V3D[side];
+}
+function v3dResize(side){
+  const v=V3D[side];if(!v)return;
+  const box=v.canvas.parentElement,w=box.clientWidth,h=box.clientHeight;
+  if(w<2||h<2)return;
+  v.renderer.setSize(w,h,false);v.camera.aspect=w/h;v.camera.updateProjectionMatrix();
+}
+// fit the object centred in the frame with equal margins (proper aspect-aware)
+function v3dFit(side){
+  const v=V3D[side];if(!v||!v.group.children.length)return;
+  const box=new THREE.Box3().setFromObject(v.group),sph=new THREE.Sphere();
+  box.getBoundingSphere(sph);
+  const fov=v.camera.fov*Math.PI/180,asp=v.camera.aspect||1;
+  const halfV=fov/2,halfH=Math.atan(Math.tan(halfV)*asp);
+  const dist=sph.radius/Math.sin(Math.min(halfV,halfH))*1.16;
+  const dir=new THREE.Vector3(0.45,0.6,1).normalize();
+  v.controls.target.copy(sph.center);
+  v.camera.position.copy(sph.center).add(dir.multiplyScalar(dist));
+  v.camera.near=Math.max(dist/1000,0.01);v.camera.far=dist*1000;
+  v.camera.updateProjectionMatrix();v.controls.update();
+}
+function v3dClear(v){
+  while(v.group.children.length){const c=v.group.children.pop();if(c.geometry)c.geometry.dispose();if(c.material)c.material.dispose();}
+  v.mesh=null;v.loops=null;
+}
+// Apply geometry. If the topology is unchanged (same mode -> same vertex/loop
+// sizes), update the buffers IN PLACE (no realloc, no EdgesGeometry rebuild) so
+// dragging the sliders is perfectly fluid. Camera kept unless frame===true.
+function v3dApply(side,geo,frame){
+  const v=v3dInit(side);if(!v)return;
+  if(!geo){v3dClear(v);return;}
+  const sameTopo = v.mesh
+    && v.mesh.geometry.attributes.position.array.length===geo.pos.length
+    && v.loops && v.loops.length===geo.loops.length
+    && v.loops.every((L,i)=>L.geometry.attributes.position.array.length===geo.loops[i].length);
+  if(sameTopo){
+    v.mesh.geometry.attributes.position.array.set(geo.pos);
+    v.mesh.geometry.attributes.position.needsUpdate=true;
+    v.mesh.geometry.computeVertexNormals();
+    v.mesh.geometry.computeBoundingSphere();
+    for(let i=0;i<geo.loops.length;i++){
+      v.loops[i].geometry.attributes.position.array.set(geo.loops[i]);
+      v.loops[i].geometry.attributes.position.needsUpdate=true;
+    }
+  }else{
+    v3dClear(v);
+    const C=V3DCOL[side]||V3DCOL.gt;
+    const bg=new THREE.BufferGeometry();
+    bg.setAttribute('position',new THREE.BufferAttribute(geo.pos,3));
+    bg.setIndex(new THREE.BufferAttribute(geo.idx,1));
+    bg.computeVertexNormals();
+    // matte, opaque, vivid. DoubleSide so an inverted-winding contour (e.g. the
+    // auto mask) still renders solid instead of looking see-through.
+    v.mesh=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:C.s,metalness:0.0,roughness:0.5,envMapIntensity:0.35,flatShading:false,side:THREE.DoubleSide}));
+    v.group.add(v.mesh);
+    v.loops=[];
+    for(const lp of geo.loops){
+      const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(lp,3));
+      const line=new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:C.e}));   // opaque edges
+      v.group.add(line);v.loops.push(line);
+    }
+  }
+  if(frame||!v.framed){v3dFit(side);v.framed=true;}
+}
+function v3dLoop(){
+  _v3dRAF=requestAnimationFrame(v3dLoop);
+  for(const side in V3D){const v=V3D[side];if(v&&v.canvas.style.display!=='none'){v.controls.update();v.renderer.render(v.scene,v.camera);}}
+}
+function v3dStart(){if(!_v3dOn){_v3dOn=true;v3dLoop();}}
+function v3dStop(){if(_v3dRAF){cancelAnimationFrame(_v3dRAF);_v3dRAF=0;}_v3dOn=false;}
+
+// build both patches in JS; frame=true re-centres the camera (on first arrival)
+function patch3DBuild(frame){
+  const t=parseInt(document.getElementById('slT').value)/10;
+  const e=parseInt(document.getElementById('slE').value)/10;
+  const m=document.getElementById('selM').value, s=pxPerMm||1;
+  for(const side of ['gt','auto']){
+    const cv=document.getElementById(side==='gt'?'cv3g':'cv3a');
+    const wi=document.getElementById(side==='gt'?'w3g':'w3a');
+    const hi=document.getElementById(side==='gt'?'h3g':'h3a');
+    const cpx=metCnt[side];
+    if(typeof THREE==='undefined'){wi.style.display='flex';wi.textContent='3D unavailable (three.js missing in libs/)';cv.style.display='none';hi.style.display='none';continue;}
+    if(!cpx||cpx.length<3){cv.style.display='none';hi.style.display='none';wi.style.display='flex';
+      wi.textContent=side==='gt'?'Draw a manual contour first':'Run auto segmentation first';continue;}
+    wi.style.display='none';cv.style.display='block';hi.style.display='block';
+    v3dResize(side);
+    let pc=_pc[side];
+    if(!pc||pc.ref!==cpx||pc.s!==s){pc=prepContour(cpx,s);pc.ref=cpx;pc.s=s;_pc[side]=pc;}
+    // perilesional offset (mm): dilate the contour outward by a constant margin
+    // (along the existing radial dir) before building the patch. 0 = unchanged.
+    const off=parseInt(document.getElementById('slO').value)/10;
+    let cc=pc.c;
+    if(off){cc=new Float32Array(pc.c.length);for(let i=0;i<pc.N;i++){cc[2*i]=pc.c[2*i]+pc.dir[2*i]*off;cc[2*i+1]=pc.c[2*i+1]+pc.dir[2*i+1]*off;}}
+    const geo=buildPatchGeo(cc,pc.dir,pc.N,t,e,m);
+    v3dApply(side,geo,frame);
+    // info labels: area/perimeter from the metrics, volume from the mesh.
+    // Units are mm only when the image was calibrated; otherwise pixels (honest).
+    const u=pxPerMm?'mm':'px';
+    const A=metData[side==='gt'?'area_gt_mm2':'area_auto_mm2'];
+    const P=metData[side==='gt'?'perimeter_gt_mm':'perimeter_auto_mm'];
+    const V=geo?meshVolume(geo.pos,geo.idx):null;
+    const pre=side==='gt'?'g':'a';
+    document.getElementById(pre+'A').textContent=(A!=null)?A.toFixed(1)+' '+u+'²':'—';
+    document.getElementById(pre+'P').textContent=(P!=null)?P.toFixed(1)+' '+u:'—';
+    document.getElementById(pre+'V').textContent=(V!=null)?V.toFixed(1)+' '+u+'³':'—';
+  }
+  v3dStart();
+}
+// throttle live slider updates to one rebuild per animation frame
+let _p3dRAF=0;
+function patch3DUpdate(){if(_p3dRAF)return;_p3dRAF=requestAnimationFrame(()=>{_p3dRAF=0;patch3DBuild(false);});}
+function patch3DEnter(){ for(const k in V3D)V3D[k].framed=false; patch3DBuild(true); setTimeout(()=>{v3dResize('gt');v3dResize('auto');patch3DBuild(true);},60); }
+
+// Export the patch solid currently shown in the viewer (mm units) as binary STL.
+// Reuses the exact Three.js geometry — no rebuild. Prefers the manual (GT) patch.
+function exportSTL(){
+  if(typeof THREE==='undefined'){toast('⚠ 3D not available');return;}
+  const v=(V3D.gt&&V3D.gt.mesh)?V3D.gt:((V3D.auto&&V3D.auto.mesh)?V3D.auto:null);
+  if(!v){toast('⚠ No patch built yet — build a patch first');return;}
+  const buf=_geoToSTL(v.mesh.geometry);
+  be('saveSTL',JSON.stringify({data:_ab2b64(buf)}),function(r){const x=JSON.parse(r);toast((x.ok?'✓ ':'⚠ ')+x.msg,x.ok?3200:3800);});
+}
+function _geoToSTL(geo){
+  const pos=geo.attributes.position.array, idx=geo.index?geo.index.array:null;
+  const nTri=idx?idx.length/3:pos.length/9;
+  const buf=new ArrayBuffer(84+nTri*50), dv=new DataView(buf);
+  dv.setUint32(80,nTri,true);
+  let off=84;const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3(),ab=new THREE.Vector3(),ac=new THREE.Vector3(),n=new THREE.Vector3();
+  for(let t=0;t<nTri;t++){
+    const i0=(idx?idx[t*3]:t*3)*3,i1=(idx?idx[t*3+1]:t*3+1)*3,i2=(idx?idx[t*3+2]:t*3+2)*3;
+    a.set(pos[i0],pos[i0+1],pos[i0+2]);b.set(pos[i1],pos[i1+1],pos[i1+2]);c.set(pos[i2],pos[i2+1],pos[i2+2]);
+    ab.subVectors(b,a);ac.subVectors(c,a);n.crossVectors(ab,ac).normalize();
+    dv.setFloat32(off,n.x,true);dv.setFloat32(off+4,n.y,true);dv.setFloat32(off+8,n.z,true);
+    dv.setFloat32(off+12,a.x,true);dv.setFloat32(off+16,a.y,true);dv.setFloat32(off+20,a.z,true);
+    dv.setFloat32(off+24,b.x,true);dv.setFloat32(off+28,b.y,true);dv.setFloat32(off+32,b.z,true);
+    dv.setFloat32(off+36,c.x,true);dv.setFloat32(off+40,c.y,true);dv.setFloat32(off+44,c.z,true);
+    dv.setUint16(off+48,0,true);off+=50;
+  }
+  return buf;
+}
+function _ab2b64(buf){const bytes=new Uint8Array(buf);let bin='';const ch=0x8000;
+  for(let i=0;i<bytes.length;i+=ch)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+ch));return btoa(bin);}
+
+// ── file ──────────────────────────────────────────────────────────────────────
+// Prevent the web view from navigating to a file dropped anywhere else.
+['dragover','drop'].forEach(ev=>window.addEventListener(ev,e=>e.preventDefault(),false));
+function onDrop(e){
+  e.preventDefault();
+  const dz=document.getElementById('dzd');if(dz)dz.classList.remove('dzover');
+  const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(!f){return}
+  if(!/^image\//.test(f.type)&&!/\.(jpe?g|png|bmp|tiff?)$/i.test(f.name)){toast('Not an image file');return}
+  document.getElementById('fname').textContent=f.name;
+  showLd('Loading image…');setSt('Loading…','busy');
+  const rd=new FileReader();
+  rd.onload=function(){be('loadImageData',JSON.stringify({name:f.name,data:rd.result}),function(){})};
+  rd.onerror=function(){hideLd();setSt('Error','err');toast('Could not read file')};
+  rd.readAsDataURL(f);
+}
+function doBrowse(){
+  showLd('Opening file\u2026');setSt('Opening\u2026','busy');
+  be('browseFile',undefined,function(path){
+    if(path&&path.length>0){
+      const fn=path.split(/[\\/]/).pop();
+      document.getElementById('fname').textContent=fn;
+      showLd('Loading image\u2026');setSt('Loading\u2026','busy');
+      be('loadImage',path,function(){});
+    }else{hideLd();setSt('Ready','ok')}
+  });
+}
+
+// ── canvas utils ──────────────────────────────────────────────────────────────
+const MC=()=>document.getElementById('mc');
+const MX=()=>MC().getContext('2d');
+function rzC(){
+  // Only resize the backing store when the container actually changed: resizing
+  // a canvas reallocates + clears it, which makes zoom stutter if done per frame.
+  const c=MC(),w=document.getElementById('cwrap');
+  if(c.width!==w.clientWidth||c.height!==w.clientHeight){c.width=w.clientWidth;c.height=w.clientHeight;}
+}
+function gsc(){return Math.min(MC().width/iW,MC().height/iH)*view.z}
+// Clamp the image translation: when the image is smaller than the canvas on an
+// axis it stays centred (equal black borders on both sides); when larger it is
+// kept covering the canvas so no black gap appears at the edges.
+function clampT(){
+  const c=MC(),sc=gsc(),iw=iW*sc,ih=iH*sc;
+  view.tx=iw<=c.width ?(c.width-iw)/2 :Math.min(0,Math.max(c.width-iw,view.tx));
+  view.ty=ih<=c.height?(c.height-ih)/2:Math.min(0,Math.max(c.height-ih,view.ty));
+}
+function gof(){clampT();return{ox:view.tx,oy:view.ty}}
+function i2c(x,y){const sc=gsc(),{ox,oy}=gof();return{x:x*sc+ox,y:y*sc+oy}}
+function c2i(cx,cy){const sc=gsc(),{ox,oy}=gof();return{x:(cx-ox)/sc,y:(cy-oy)/sc}}
+// Decode the image once into a GPU-friendly ImageBitmap (much faster to draw
+// each frame than re-blitting an HTMLImageElement). Falls back to the element.
+function gImg(cb){
+  if(iEl){cb(iEl);return}
+  const i=new Image();
+  i.onload=()=>{
+    if(window.createImageBitmap){
+      createImageBitmap(i).then(bmp=>{iEl=bmp;cb(bmp)}).catch(()=>{iEl=i;cb(i)});
+    }else{iEl=i;cb(i)}
+  };
+  i.src=iUrl;
+}
+function zmC(e){
+  if(!e.ctrlKey)return;e.preventDefault();_markFast();_frPing('zoom');
+  const c=MC(),r=c.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;
+  // Immediate, 1:1 with the wheel (no inertia). ~10% per notch, proportional to
+  // the delta so trackpads get small smooth steps.
+  const f=Math.pow(1.10,-e.deltaY/120);
+  zoomAt(cx,cy,f);
+}
+function zoomStep(f){const c=MC();zoomAt(c.width/2,c.height/2,f);}
+// Cursor-anchored zoom applied at once. Painting is throttled to one frame via
+// requestAnimationFrame so a fast wheel burst stays fluid but stops instantly
+// when the wheel stops. Never goes below fit (z=1).
+function zoomAt(ax,ay,f){
+  const nz=Math.max(1,Math.min(30,view.z*f));
+  if(nz===view.z)return;
+  const sc=gsc(),{ox,oy}=gof();
+  const ix=(ax-ox)/sc, iy=(ay-oy)/sc;     // image point currently under (ax,ay)
+  view.z=nz;
+  const sc2=gsc();
+  view.tx=ax-ix*sc2; view.ty=ay-iy*sc2;    // keep it under (ax,ay) after zoom
+  clampT(); scheduleRedraw();
+}
+function resetView(){view={z:1,tx:0,ty:0};redraw()}
+
+// ── CSS image layers ──────────────────────────────────────────────────────────
+// Position a layer so image-px (x,y) maps to client-px (x*sc+ox, y*sc+oy) — the
+// exact same mapping i2c() uses for the canvas, so overlays stay pixel-aligned.
+function placeImg(el,sc,ox,oy){if(el)el.style.transform='translate('+ox+'px,'+oy+'px) scale('+sc+')';}
+function showBase(sc,ox,oy){
+  const b=document.getElementById('baseimg'),o=document.getElementById('ovimg');
+  if(o)o.style.display='none';
+  if(b){b.style.display='block';placeImg(b,sc,ox,oy);}
+}
+function showOv(sc,ox,oy){
+  const b=document.getElementById('baseimg'),o=document.getElementById('ovimg');
+  if(b)b.style.display='none';
+  if(o){o.style.display='block';placeImg(o,sc,ox,oy);}
+}
+
+// ── perf HUD (toggle with F9) ─────────────────────────────────────────────────
+function hudPaint(){
+  const h=document.getElementById('perfhud');if(!h)return;
+  const avg=_pst.n?(_pst.sum/_pst.n):0;
+  h.textContent=
+    'PERF   F9 close · F10 save report\n'+
+    'page '+_cm+'   zoom '+view.z.toFixed(2)+'x\n'+
+    'redraw last  '+_pst.last.toFixed(1)+' ms\n'+
+    'redraw avg   '+avg.toFixed(1)+' ms  (n='+_pst.n+')\n'+
+    'redraw max   '+_pst.max.toFixed(1)+' ms\n'+
+    'fps          '+_fps.toFixed(0)+'\n'+
+    'overlay rt   '+_ovMs.toFixed(0)+' ms  (backend render)';
+}
+function hudToggle(){
+  _prof=!_prof;
+  const h=document.getElementById('perfhud');if(h)h.style.display=_prof?'block':'none';
+  if(_prof)hudPaint();
+}
+// Definitively reveal whether QtWebEngine renders via the real GPU or a software
+// fallback (SwiftShader/llvmpipe) -> the usual root cause of "smooth on PC A,
+// janky on PC B".
+function gpuInfo(){
+  try{
+    const cv=document.createElement('canvas');
+    const gl=cv.getContext('webgl')||cv.getContext('experimental-webgl');
+    if(!gl)return 'no WebGL context';
+    const dbg=gl.getExtension('WEBGL_debug_renderer_info');
+    const ven=dbg?gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR);
+    const ren=dbg?gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);
+    return ven+' | '+ren;
+  }catch(e){return 'err: '+e}
+}
+// Build a full perf report and write it to perf_report.txt (next to the script)
+// via the backend -> no copy-pasting numbers out of the UI.
+function dumpPerf(){
+  const ord=_ri>_RING?_ring.slice(_ri%_RING).concat(_ring.slice(0,_ri%_RING)):_ring.slice(0,_ri);
+  const stat=a=>{if(!a.length)return'(no samples)';const s=a.slice().sort((x,y)=>x-y);
+    const avg=a.reduce((p,c)=>p+c,0)/a.length;
+    return 'n='+a.length+'  avg='+avg.toFixed(1)+'  p50='+s[Math.floor(s.length*0.5)].toFixed(1)+
+           '  p95='+s[Math.min(s.length-1,Math.floor(s.length*0.95))].toFixed(1)+'  max='+s[s.length-1].toFixed(1)+' ms';};
+  const byP={1:[],2:[],3:[],4:[]},lbl={1:'calibration',2:'manual-seg',3:'auto-seg',4:'metrics'};
+  ord.forEach(s=>{if(byP[s.p])byP[s.p].push(s.ms)});
+  let r='WOUND ANNOTATOR — PERF REPORT\n';
+  r+='USE_GPU build flag path: see launch; below is what actually happened\n\n';
+  r+='userAgent       : '+navigator.userAgent+'\n';
+  r+='devicePixelRatio: '+window.devicePixelRatio+'\n';
+  r+='GPU (WebGL)     : '+gpuInfo()+'\n';
+  r+='image / canvas  : '+iW+'x'+iH+'  /  '+MC().width+'x'+MC().height+'   zoom now '+view.z.toFixed(2)+'x\n';
+  r+='total redraws   : '+_ri+'\n\n';
+  r+='REDRAW TIME — JS canvas work only, EXCLUDES compositor (lower=better)\n';
+  r+='  overall : '+stat(ord.map(s=>s.ms))+'\n';
+  [1,2,3,4].forEach(p=>{if(byP[p].length)r+='  page '+p+' ('+lbl[p]+') : '+stat(byP[p])+'\n';});
+  const ford=_fri>_RING?_fring.slice(_fri%_RING).concat(_fring.slice(0,_fri%_RING)):_fring.slice(0,_fri);
+  const fdts=ford.map(s=>s.dt);
+  const fbyK={};
+  ford.forEach(s=>{const kk=s.k||'?';(fbyK[kk]=fbyK[kk]||[]).push(s.dt)});
+  const fline=a=>stat(a)+'   >33ms: '+a.filter(d=>d>33).length+'/'+a.length;
+  r+='\nFRAME CADENCE during interaction — rAF deltas, INCLUDES GPU compositor (THE real smoothness metric)\n';
+  r+='  16.7ms = perfect 60fps; >20ms = stutter; >33ms = sub-30fps jank\n';
+  r+='  overall : '+fline(fdts)+'\n';
+  Object.keys(fbyK).forEach(k=>{r+='  '+k+' : '+fline(fbyK[k])+'\n';});
+  r+='\nOVERLAY BACKEND RENDER (matplotlib, blocks GUI thread) per metric:\n';
+  const ks=Object.keys(_ovLog);
+  if(ks.length)ks.forEach(k=>{r+='  '+k+' : '+_ovLog[k].toFixed(0)+' ms\n'});
+  else r+='  (no metric overlay clicked yet)\n';
+  r+='\nLAST '+Math.min(ord.length,60)+' REDRAW SAMPLES (ms @ page,zoom):\n';
+  ord.slice(-60).forEach(s=>{r+='  '+s.ms.toFixed(1).padStart(6)+'  p'+s.p+'  '+s.z+'x\n'});
+  be('savePerf',r,function(path){toast('Perf report saved → '+(path||'perf_report.txt'),4000);});
+}
+// BASELINE probe: animate a real element EVERY frame for 3s (forces the
+// compositor to produce a frame each time — avoids Chromium's no-damage rAF
+// throttling). This measures the true achievable frame rate. If even this trivial
+// single-layer animation is janky, the QtWebEngine/Chromium compositor itself is
+// the ceiling; if it's smooth, the jank is specific to our canvas+image rendering.
+function baselineTest(){
+  toast('Baseline: 3s animation test — don’t touch anything…',3400);
+  setSt('Baseline test…','busy');
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:64px;left:0;width:80px;height:80px;background:#1D9E75;'
+                 +'z-index:99999;will-change:transform;pointer-events:none';
+  document.body.appendChild(d);
+  let last=0,k=0;const arr=[],end=performance.now()+3000;
+  function tick(t){
+    if(last)arr.push(t-last);last=t;
+    k=(k+3)%240; d.style.transform='translateX('+k+'px)';   // force compositor damage each frame
+    if(performance.now()<end)requestAnimationFrame(tick);
+    else{
+      d.remove();
+      const s=arr.slice().sort((a,b)=>a-b),avg=arr.reduce((p,c)=>p+c,0)/(arr.length||1);
+      const bad=arr.filter(x=>x>33).length,jit=arr.filter(x=>x>20).length;
+      let r='WOUND ANNOTATOR — BASELINE FRAME TEST (animated div, forces a frame each time)\n';
+      r+='GPU (WebGL): '+gpuInfo()+'\n';
+      r+='If THIS is janky, the QtWebEngine/Chromium compositor is the ceiling; if smooth, the jank is our canvas+image rendering.\n\n';
+      r+='n='+arr.length+'  avg='+avg.toFixed(1)+'  p50='+s[s.length>>1].toFixed(1)+
+         '  p95='+s[Math.min(s.length-1,Math.floor(s.length*0.95))].toFixed(1)+'  max='+s[s.length-1].toFixed(1)+' ms\n';
+      r+='frames >20ms: '+jit+' / '+arr.length+'    frames >33ms: '+bad+' / '+arr.length+'\n';
+      be('savePerf',r,function(){toast('Baseline saved → perf_report.txt',4000);setSt('Baseline done','ok');});
+    }
+  }
+  requestAnimationFrame(tick);
+}
+function cross(ctx,x,y,col,sz,lw){
+  ctx.beginPath();ctx.moveTo(x-sz/2,y);ctx.lineTo(x+sz/2,y);ctx.moveTo(x,y-sz/2);ctx.lineTo(x,y+sz/2);
+  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke();
+}
+
+let _cm=null;
+function initCanvas(p){
+  const c=MC();rzC();view={z:1,tx:0,ty:0};
+  c.onmousedown=null;c.onmousemove=null;c.onmouseup=null;
+  c.ondblclick=null;c.onwheel=null;c.oncontextmenu=null;
+  c.onwheel=zmC;c.ondblclick=resetView;c.oncontextmenu=e=>e.preventDefault();
+  _cm=p;
+  if(p===1)c.onmousedown=calClick;
+  else if(p===2){c.onmousedown=sdD;c.onmousemove=sdM;c.onmouseup=sdU;c.oncontextmenu=sdR}
+  redraw();
+}
+function redraw(){
+  if(!iUrl)return;
+  const _t0=performance.now();
+  // Cheap "low" scaling while the user is actively zooming/panning, crisp "high"
+  // once they stop -> fluid interaction even on software-rendered machines.
+  const ctx=MX();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality=_fast?'low':'high';
+  if(_cm===1)dCal();
+  else if(_cm===2)dSeg();
+  else if(_cm===3)dAuto();
+  else if(_cm===4){if(metKey)dMetVec();else dMet();}
+  _rec(performance.now()-_t0);     // always record (cheap) so F10 can dump a report
+  if(_prof)hudPaint();
+}
+// Record one redraw sample into the always-on ring buffer + running aggregates.
+function _rec(dt){
+  _pst.last=dt;_pst.sum+=dt;_pst.n++;if(dt>_pst.max)_pst.max=dt;
+  const now=performance.now();_fpsN++;
+  if(now-_fpsT0>=500){_fps=_fpsN*1000/(now-_fpsT0);_fpsN=0;_fpsT0=now;}
+  _ring[_ri%_RING]={ms:dt,p:_cm,z:+view.z.toFixed(2)};_ri++;
+}
+// Real frame-cadence probe: measures time BETWEEN animation frames during an
+// interaction -> captures the full pipeline incl. the GPU compositor (which
+// redraw() timing misses). Smooth = ~16.7ms deltas; jank = spikes.
+function _frTick(t){
+  if(_fr.last){_fring[_fri%_RING]={dt:t-_fr.last,p:_cm,k:_frKind};_fri++;}
+  _fr.last=t;
+  if(performance.now()<_fr.end)requestAnimationFrame(_frTick);
+  else{_fr.on=false;_fr.last=0;}
+}
+function _frPing(kind){if(kind)_frKind=kind;_fr.end=performance.now()+800;if(!_fr.on){_fr.on=true;_fr.last=0;requestAnimationFrame(_frTick);}}
+// Coalesce rapid zoom/redraw requests into a single paint per animation frame.
+let _raf=0;
+function scheduleRedraw(){if(_raf)return;_raf=requestAnimationFrame(()=>{_raf=0;redraw();});}
+// Mark an interaction in progress: draw fast now, schedule one crisp repaint when
+// the wheel/drag goes quiet.
+function _markFast(){_fast=true;clearTimeout(_fastT);_fastT=setTimeout(()=>{_fast=false;redraw();},140);}
+
+// ── middle-button pan (works on any zoomed page 1-4) ──────────────────────────
+function panStart(e){
+  if(e.button!==1||curP<1||curP>4)return;        // middle button only
+  e.preventDefault();
+  _pan={sx:e.clientX,sy:e.clientY,tx:view.tx,ty:view.ty};
+  MC().style.cursor='grabbing';
+}
+function panDrag(e){
+  if(!_pan)return;
+  _markFast();_frPing('pan');
+  view.tx=_pan.tx+(e.clientX-_pan.sx);
+  view.ty=_pan.ty+(e.clientY-_pan.sy);
+  clampT();scheduleRedraw();
+}
+function panEnd(){
+  if(!_pan)return;
+  _pan=null;MC().style.cursor='';redraw();
+}
+
+// ── page 1: calibration ───────────────────────────────────────────────────────
+function calClick(e){
+  if(e.button!==0)return;              // ignore middle/right (middle = pan)
+  const r=MC().getBoundingClientRect(),pt=c2i(e.clientX-r.left,e.clientY-r.top);
+  if(calPts.length>=2)calPts=[];
+  calPts.push(pt);be('setCalPoints',JSON.stringify(calPts),function(){});dCal();
+}
+function dCal(){
+  const c=MC(),ctx=MX();rzC();ctx.clearRect(0,0,c.width,c.height);
+  const sc=gsc(),{ox,oy}=gof();showBase(sc,ox,oy);
+  const CAL_COL='#d97706';   // calibration accent: darker amber (palette warm tone)
+  calPts.forEach(p=>{const cv=i2c(p.x,p.y);cross(ctx,cv.x,cv.y,CAL_COL,24,2.5)});
+  if(calPts.length===2){
+    const c0=i2c(calPts[0].x,calPts[0].y),c1=i2c(calPts[1].x,calPts[1].y);
+    ctx.beginPath();ctx.moveTo(c0.x,c0.y);ctx.lineTo(c1.x,c1.y);
+    ctx.strokeStyle=CAL_COL;ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.stroke();ctx.setLineDash([]);
+    const px=Math.hypot(calPts[1].x-calPts[0].x,calPts[1].y-calPts[0].y);
+    const v=document.getElementById('calLen').value;
+    const lbTxt=v?`${v} mm (${px.toFixed(0)} px)`:`${px.toFixed(0)} px`;
+    ctx.save();ctx.font='bold 11px Segoe UI,sans-serif';
+    const tw=ctx.measureText(lbTxt).width+14,th=22,lx=(c0.x+c1.x)/2,ly=(c0.y+c1.y)/2;
+    const rx=lx-tw/2,ry=ly-th/2,rr2=4;
+    ctx.fillStyle='#161616';ctx.strokeStyle=CAL_COL;ctx.lineWidth=1.4;   // opaque badge bg
+    ctx.beginPath();ctx.moveTo(rx+rr2,ry);ctx.lineTo(rx+tw-rr2,ry);ctx.arcTo(rx+tw,ry,rx+tw,ry+rr2,rr2);ctx.lineTo(rx+tw,ry+th-rr2);ctx.arcTo(rx+tw,ry+th,rx+tw-rr2,ry+th,rr2);ctx.lineTo(rx+rr2,ry+th);ctx.arcTo(rx,ry+th,rx,ry+th-rr2,rr2);ctx.lineTo(rx,ry+rr2);ctx.arcTo(rx,ry,rx+rr2,ry,rr2);ctx.closePath();
+    ctx.fill();ctx.stroke();
+    ctx.fillStyle='#eeeeee';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(lbTxt,lx,ly);ctx.restore();
+  }
+}
+function setScale(){
+  const mm=parseFloat(document.getElementById('calLen').value);
+  if(isNaN(mm)||mm<=0){toast('Enter a valid length in mm');return}
+  be('setScale',mm,function(r){const x=JSON.parse(r);if(!x.ok)toast('\u26a0 '+x.msg);else dCal()});
+}
+function skipScale(){be('skipScale',undefined,function(){toast('Using pixels as unit');go(2);preEncode()})}
+// Start the SAM image-encode in the background NOW (calibration done = no more zoom),
+// so 'Auto-segment'/run is near-instant. Safe: backend ignores it if already done.
+function preEncode(){be('prewarmSAM',undefined,function(){})}
+function confirmCal(){
+  // Safety net: "Confirm" used to just advance (go(2)). A user who placed 2 points and
+  // typed the reference length but never clicked "Set scale" then proceeded with the
+  // scale UNSET -> every metric came out in PIXELS (mislabelled as mm). If a valid
+  // length is present, apply the scale now (setScale is idempotent) before advancing.
+  // Empty/invalid length -> proceed in pixels, exactly like the explicit "Skip" button.
+  const mm=parseFloat(document.getElementById('calLen').value);
+  if(calPts.length>=2 && !isNaN(mm) && mm>0){
+    be('setScale',mm,function(r){const x=JSON.parse(r);if(!x.ok){toast('⚠ '+x.msg);}else{dCal();}go(2);preEncode();});
+  } else {
+    go(2);preEncode();
+  }
+}
+
+// ── page 2: manual seg ────────────────────────────────────────────────────────
+function nPt(cx,cy){
+  let bi=-1,bd=Infinity;
+  segPts.forEach((p,i)=>{const cv=i2c(p.x,p.y),d=Math.hypot(cx-cv.x,cy-cv.y);if(d<bd){bd=d;bi=i}});
+  return{idx:bi,dist:bd};
+}
+function nFirst(cx,cy){
+  if(segPts.length<3||segCl)return false;
+  const cv=i2c(segPts[0].x,segPts[0].y);return Math.hypot(cx-cv.x,cy-cv.y)<=SNAP;
+}
+function sdD(e){
+  if(e.button!==0)return;
+  const r=MC().getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;
+  if(segCl)return;
+  const{idx,dist}=nPt(cx,cy);
+  if(idx>=0&&dist<=SNAP){segDr=idx;justPlaced=false;MC().style.cursor=GRAB_CUR;return}   // grab existing point
+  if(nFirst(cx,cy)){be('pushUndo',JSON.stringify(segPts),()=>{});segCl=true;justPlaced=false;updSS();recomp();return}
+  const ip=c2i(cx,cy);be('pushUndo',JSON.stringify(segPts),()=>{});segPts.push(ip);justPlaced=true;updSS();recomp();
+}
+function sdM(e){
+  if(_pan)return;                      // don't fight the pan gesture
+  const r=MC().getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;
+  // Dragging a point: update locally + repaint via rAF (spline is computed in JS,
+  // no backend round-trip) -> perfectly fluid.
+  if(segDr>=0){segPts[segDr]=c2i(cx,cy);_frPing('drag');scheduleRedraw();return}
+  if(!segCl){
+    const{idx,dist}=nPt(cx,cy),near=idx>=0&&dist<=SNAP;
+    // After placing a point the cursor is still over it: keep the crosshair until
+    // the cursor actually leaves the point, so it doesn't snap to a hand instantly.
+    if(justPlaced){ if(near){MC().style.cursor='crosshair';return;} justPlaced=false; }
+    MC().style.cursor=near?GRAB_CUR:(nFirst(cx,cy)?'pointer':'crosshair');
+  }
+}
+function sdU(){if(segDr>=0){segDr=-1;recomp()}}   // sync points to backend once, on release
+function sdR(e){
+  e.preventDefault();if(segCl)return;
+  const r=MC().getBoundingClientRect(),{idx,dist}=nPt(e.clientX-r.left,e.clientY-r.top);
+  if(idx>=0&&dist<=SNAP*2){be('pushUndo',JSON.stringify(segPts),()=>{});segPts.splice(idx,1);justPlaced=false;updSS();recomp()}
+}
+// Closed Catmull-Rom spline through the control points (smooth, interpolating).
+// Used only for the live on-screen preview; the final GT contour is recomputed
+// by the backend on Confirm.
+function csSpline(pts){
+  const n=pts.length; if(n<3) return [];
+  const SEG=18, out=[];
+  for(let i=0;i<n;i++){
+    const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+    for(let j=0;j<SEG;j++){
+      const t=j/SEG,t2=t*t,t3=t2*t;
+      out.push({
+        x:0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+        y:0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+      });
+    }
+  }
+  return out;
+}
+// Keep the backend's control points in sync and repaint. No spline round-trip.
+function recomp(){be('setControlPoints',JSON.stringify(segPts),()=>{});dSeg();}
+function updSS(){
+  const n=segPts.length,el=document.getElementById('segst'),btn=document.getElementById('confBtn');
+  const cb=document.getElementById('closeBtn');
+  if(cb)cb.disabled=!(n>=3&&!segCl);
+  if(n===0){el.textContent='Click to add points';el.style.cssText='color:var(--t2);background:var(--s2);border-color:var(--b2)';btn.disabled=true}
+  else if(n<3){el.textContent=n+' pts \u2014 need 3+';el.style.cssText='color:var(--amber);background:#fbbf2414;border-color:#fbbf2444';btn.disabled=true}
+  else if(!segCl){el.textContent=n+' pts \u2014 click \u271a or press Enter to close';el.style.cssText='color:var(--blue);background:#60a5fa14;border-color:#60a5fa44';btn.disabled=true}
+  else{el.textContent='\u2713 Closed ('+n+' pts)';el.style.cssText='color:var(--teal-border);background:var(--teal-light);border-color:var(--teal-border)';btn.disabled=false}
+}
+// Close the contour (finish the outline). Available via the panel button, Enter,
+// or clicking the green start point.
+function closeContour(){
+  if(segCl||segPts.length<3){if(segPts.length<3)toast('Add at least 3 points first');return}
+  be('pushUndo',JSON.stringify(segPts),()=>{});segCl=true;justPlaced=false;updSS();recomp();
+  toast('Contour closed \u2014 press Confirm & run');
+}
+function sUndo(){be('undo',undefined,function(r){const x=JSON.parse(r);if(x.ok){segPts=x.pts;segCl=false;segSpl=[];recomp();updSS();dSeg()}else toast('Nothing to undo')})}
+function sRedo(){be('redo',undefined,function(r){const x=JSON.parse(r);if(x.ok){segPts=x.pts;segCl=false;segSpl=[];recomp();updSS();dSeg()}else toast('Nothing to redo')})}
+function sReset(){be('resetSegmentation',undefined,()=>{});segPts=[];segCl=false;segSpl=[];segDr=-1;updSS();dSeg()}
+// Run the chosen method. SAM is loaded lazily here (only now, with a progress
+// overlay); GrabCut/Watershed need no model and run immediately.
+function runPipeline(){ startSeg(curMethod); }
+// Optional SAM auto-prompt (no manual GT). Backend builds the prompt from the
+// image (Otsu) and reuses the existing SAM pipeline -> onASD shows the results.
+function autoPrompt(){
+  if(!iUrl){toast('Load an image first');return;}
+  // ONE loader only: the % bar. The backend worker loads/encodes (driving the bar)
+  // then segments, all off the GUI thread; onASD hides the bar when the result is in.
+  showSamLoader();setSt('Running…','busy');
+  be('runAutoPrompt',undefined,function(){});
+}
+function startSeg(name){
+  if(name.startsWith('SAM')){
+    if(samReady){runSeg();}                       // already loaded+encoded -> instant
+    else{_pendingRun=true;showSamLoader();be('loadSAMAsync',undefined,function(){});}
+  }else{ runSeg(); }
+}
+function runSeg(){showLd('Running '+curMethod+'\u2026');setSt('Running\u2026','busy');be('runAutoSegmentation',curMethod,function(){})}
+function dSeg(){
+  const c=MC(),ctx=MX();rzC();ctx.clearRect(0,0,c.width,c.height);
+  const sc=gsc(),{ox,oy}=gof();showBase(sc,ox,oy);
+  const crv=csSpline(segPts);
+  if(crv.length>2){
+    const pts=crv.map(p=>({x:p.x*sc+ox,y:p.y*sc+oy}));
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.forEach(p=>ctx.lineTo(p.x,p.y));
+    if(segCl){ctx.closePath();ctx.fillStyle='#4ade8028';ctx.fill();ctx.strokeStyle='#4ade80';ctx.lineWidth=2;ctx.stroke()}
+    else{ctx.closePath();ctx.strokeStyle='#4ade80';ctx.lineWidth=2;ctx.setLineDash([7,4]);ctx.stroke();ctx.setLineDash([])}
+  }
+  segPts.forEach((p,i)=>{
+    const cv=i2c(p.x,p.y),isF=i===0&&!segCl&&segPts.length>=3;
+    cross(ctx,cv.x,cv.y,isF?'#4ade80':'#fbbf24',isF?30:24,isF?3:2.5);
+    if(isF){ctx.beginPath();ctx.arc(cv.x,cv.y,SNAP,0,Math.PI*2);ctx.strokeStyle='#4ade8050';ctx.lineWidth=1;ctx.stroke()}
+  });
+}
+
+// ── page 3: auto seg ──────────────────────────────────────────────────────────
+function dAuto(){
+  // Clean image (CSS layer) + GT/auto contours as crisp VECTOR polylines, so
+  // they stay sharp and scale with zoom.
+  const c=MC(),ctx=MX();rzC();ctx.clearRect(0,0,c.width,c.height);
+  if(!iUrl)return;
+  const sc=gsc(),{ox,oy}=gof();showBase(sc,ox,oy);
+  const d=metCnt;
+  if(d.gt){const pts=d.gt.map(p=>({x:p.x*sc+ox,y:p.y*sc+oy}));ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#4ade80';ctx.lineWidth=2;ctx.stroke()}
+  if(d.auto){const pts=d.auto.map(p=>({x:p.x*sc+ox,y:p.y*sc+oy}));ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#f87171';ctx.lineWidth=2;ctx.stroke()}
+}
+function selMethod(el,name){
+  if(!AVAIL.includes(name)){toast(name+' — not available (needs model weights)');return}
+  curMethod=name;
+  document.querySelectorAll('.mitem').forEach(m=>{
+    const nm=m.querySelector('.mitem-name').textContent.trim();
+    if(AVAIL.includes(nm)){m.classList.remove('sel');const b=m.querySelector('.mbadge');b.className='mbadge mna';b.textContent='Ready'}
+  });
+  el.classList.add('sel');const bb=el.querySelector('.mbadge');bb.className='mbadge mbest';bb.textContent='Active';
+  // Re-run with the chosen method (GT already exists). Lazy-loads SAM if needed.
+  startSeg(name);
+}
+
+// ── page 4: metrics ───────────────────────────────────────────────────────────
+const MGRPS=[
+  {t:'Overlap',c:'#4ade80',items:[{k:'dice',l:'Dice'},{k:'iou',l:'IoU / Jaccard'}]},
+  {t:'Area',c:'#60a5fa',items:[{k:'area_gt_mm2',l:'Manual area (mm\u00b2)'},{k:'area_auto_mm2',l:'Auto area (mm\u00b2)'},{k:'area_rel_err',l:'Rel. area error'},{k:'under_cov_mm2',l:'Uncovered wound (mm\u00b2)'},{k:'over_cov_mm2',l:'Excess on skin (mm\u00b2)'},{k:'cri_lambda3',l:'Cost index \u03bb=3'}]},
+  {t:'Distance',c:'#f87171',items:[{k:'hausdorff_mm',l:'Hausdorff (mm)'},{k:'avg_surf_dist_mm',l:'Avg surface dist (mm)'}]},
+  {t:'Manual geometry',c:'#c084fc',items:[{k:'perimeter_gt_mm',l:'Perimeter (mm)'},{k:'compactness_gt',l:'Compactness'},{k:'bbox_gt_major_mm',l:'BBox major (mm)'},{k:'bbox_gt_minor_mm',l:'BBox minor (mm)'},{k:'aspect_ratio_gt',l:'Aspect ratio'}]},
+  {t:'Auto geometry',c:'#fbbf24',items:[{k:'perimeter_auto_mm',l:'Perimeter (mm)'},{k:'compactness_auto',l:'Compactness'},{k:'bbox_auto_major_mm',l:'BBox major (mm)'},{k:'bbox_auto_minor_mm',l:'BBox minor (mm)'},{k:'aspect_ratio_auto',l:'Aspect ratio'},{k:'bbox_auto_x_mm',l:'A (X) (mm)'},{k:'bbox_auto_y_mm',l:'B (Y) (mm)'}]},
+];
+function buildMetPanel(){
+  const p=document.getElementById('metPanel');p.innerHTML='';
+  MGRPS.forEach(g=>{
+    const gt=document.createElement('div');gt.className='mg';gt.style.color=g.c;gt.textContent=g.t;p.appendChild(gt);
+    g.items.forEach(it=>{
+      const v=metData[it.k];
+      const vs=(v===undefined||v===null)?'\u2014':(typeof v==='number'?v.toFixed(1):String(v));
+      const row=document.createElement('div');row.className='mrow';row.style.setProperty('--gc',g.c);
+      row.innerHTML=`<span class="ml">${it.l}</span><span class="mv" style="color:${g.c}">${vs}</span>`;
+      row.onclick=()=>clickMet(it.k,row);p.appendChild(row);
+    });
+  });
+}
+function allMetKeys(){const ks=[];MGRPS.forEach(g=>g.items.forEach(it=>ks.push(it.k)));return ks;}
+
+function clickMet(k,row){
+  document.querySelectorAll('.mrow').forEach(r=>r.classList.remove('active'));
+  if(metKey===k){metKey=null;dMet();return}     // toggle off
+  metKey=k;row.classList.add('active');redraw(); // draw the vector overlay (crisp, instant)
+}
+function dMet(){
+  const c=MC(),ctx=MX();rzC();ctx.clearRect(0,0,c.width,c.height);
+  if(!iUrl)return;
+  const sc=gsc(),{ox,oy}=gof();showBase(sc,ox,oy);
+  const d=metCnt;   // cached, no backend round-trip per frame
+  if(d.gt){const pts=d.gt.map(p=>({x:p.x*sc+ox,y:p.y*sc+oy}));ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.fillStyle='#4ade8018';ctx.fill();ctx.strokeStyle='#4ade80';ctx.lineWidth=2;ctx.stroke()}
+  if(d.auto){const pts=d.auto.map(p=>({x:p.x*sc+ox,y:p.y*sc+oy}));ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.fillStyle='#f8717118';ctx.fill();ctx.strokeStyle='#f87171';ctx.lineWidth=2;ctx.setLineDash([5,3]);ctx.stroke();ctx.setLineDash([])}
+}
+// \u2500\u2500 vectorial metric overlays \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Drawn straight on the canvas (crisp at any zoom, no matplotlib/raster), each in
+// SHADES of its metric-group colour so the image matches the right-panel palette.
+const MGRP={dice:'ov',iou:'ov',area_gt_mm2:'ar',area_auto_mm2:'ar',area_rel_err:'ar',
+  hausdorff_mm:'di',avg_surf_dist_mm:'di',
+  perimeter_gt_mm:'gm',compactness_gt:'gm',bbox_gt_major_mm:'gm',bbox_gt_minor_mm:'gm',aspect_ratio_gt:'gm',
+  perimeter_auto_mm:'ga',compactness_auto:'ga',bbox_auto_major_mm:'ga',bbox_auto_minor_mm:'ga',aspect_ratio_auto:'ga'};
+const MPAL={ov:{l:'#bbf7d0',m:'#4ade80',d:'#15a34a'},ar:{l:'#bfdbfe',m:'#60a5fa',d:'#2563eb'},
+  di:{l:'#fecaca',m:'#f87171',d:'#dc2626'},gm:{l:'#e9d5ff',m:'#c084fc',d:'#9333ea'},ga:{l:'#fde68a',m:'#fbbf24',d:'#d97706'}};
+function _hx(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function _mix(a,b,t){const x=_hx(a),y=_hx(b);return'rgb('+(x[0]+(y[0]-x[0])*t|0)+','+(x[1]+(y[1]-x[1])*t|0)+','+(x[2]+(y[2]-x[2])*t|0)+')';}
+function _rgba(h,a){const x=_hx(h);return'rgba('+x[0]+','+x[1]+','+x[2]+','+a+')';}
+function _toC(arr,sc,ox,oy){return arr.map(p=>({x:p.x*sc+ox,y:p.y*sc+oy}));}
+function _path(ctx,P){ctx.beginPath();ctx.moveTo(P[0].x,P[0].y);for(let i=1;i<P.length;i++)ctx.lineTo(P[i].x,P[i].y);ctx.closePath();}
+// stroke a poly with a dark halo underneath -> stays visible on light images
+function _stroke(ctx,P,color,w,dash,closed){
+  ctx.save();ctx.lineJoin='round';ctx.lineCap='round';if(dash)ctx.setLineDash(dash);
+  ctx.beginPath();ctx.moveTo(P[0].x,P[0].y);for(let i=1;i<P.length;i++)ctx.lineTo(P[i].x,P[i].y);if(closed)ctx.closePath();
+  ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=w+2.4;ctx.stroke();
+  ctx.strokeStyle=color;ctx.lineWidth=w;ctx.stroke();ctx.restore();
+}
+function _halo(ctx,P,w,closed){ctx.save();ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();ctx.moveTo(P[0].x,P[0].y);for(let i=1;i<P.length;i++)ctx.lineTo(P[i].x,P[i].y);if(closed)ctx.closePath();ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=w;ctx.stroke();ctx.restore();}
+function _seg(ctx,a,b,color,w){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=color;ctx.lineWidth=w;ctx.stroke();}
+function _fillPoly(ctx,P,color){ctx.save();_path(ctx,P);ctx.fillStyle=color;ctx.fill();ctx.restore();}
+// boolean region fills (\u2229 \u222a A\B) via offscreen compositing \u2014 vectorial & crisp
+let _oc=null,_octx=null;
+function _offc(w,h){if(!_oc){_oc=document.createElement('canvas');_octx=_oc.getContext('2d');}if(_oc.width!==w||_oc.height!==h){_oc.width=w;_oc.height=h;}_octx.setTransform(1,0,0,1,0,0);_octx.globalCompositeOperation='source-over';_octx.clearRect(0,0,w,h);return _octx;}
+function _region(ctx,op,A,B,color){
+  const o=_offc(MC().width,MC().height);o.fillStyle=color;
+  if(op==='union'){_path(o,A);o.fill();_path(o,B);o.fill();}
+  else if(op==='inter'){_path(o,A);o.fill();o.globalCompositeOperation='destination-in';_path(o,B);o.fill();}
+  else if(op==='aMinusB'){_path(o,A);o.fill();o.globalCompositeOperation='destination-out';_path(o,B);o.fill();}
+  else if(op==='bMinusA'){_path(o,B);o.fill();o.globalCompositeOperation='destination-out';_path(o,A);o.fill();}
+  ctx.drawImage(_oc,0,0);
+}
+function _bbox(P){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of P){if(p.x<x0)x0=p.x;if(p.y<y0)y0=p.y;if(p.x>x1)x1=p.x;if(p.y>y1)y1=p.y;}return{x0,y0,x1,y1};}
+function _minD(P,Q){return P.map(p=>{let m=1e18;for(let i=0;i<Q.length;i++){const dx=p.x-Q[i].x,dy=p.y-Q[i].y,d=dx*dx+dy*dy;if(d<m)m=d;}return Math.sqrt(m);});}
+function _marker(ctx,x,y,r,color){ctx.save();ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=color;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=2;ctx.fill();ctx.stroke();ctx.restore();}
+function _axis(ctx,a,b,color,w){
+  _stroke(ctx,[a,b],color,w,null,false);
+  const dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L,cap=7;
+  _stroke(ctx,[{x:a.x-nx*cap,y:a.y-ny*cap},{x:a.x+nx*cap,y:a.y+ny*cap}],color,w,null,false);
+  _stroke(ctx,[{x:b.x-nx*cap,y:b.y-ny*cap},{x:b.x+nx*cap,y:b.y+ny*cap}],color,w,null,false);
+}
+function drawMetricOverlay(ctx,key,G,A){
+  const C=MPAL[MGRP[key]||'gm'];
+  const faint=(P,dash)=>{if(P)_stroke(ctx,P,_rgba(C.m,.55),1.4,dash||[5,4],true);};
+  // OVERLAP \u2014 green shades; Dice and IoU now look different
+  if(key==='dice'||key==='iou'){
+    if(!G||!A){if(G)_stroke(ctx,G,C.m,2,null,true);if(A)_stroke(ctx,A,C.m,2,null,true);return;}
+    if(key==='iou'){                                  // union (faint) vs intersection (strong)
+      _region(ctx,'union',G,A,_rgba(C.l,.32));
+      _region(ctx,'inter',G,A,_rgba(C.d,.55));
+    }else{                                            // dice: the two summed regions, overlap doubled
+      _region(ctx,'aMinusB',G,A,_rgba(C.m,.30));
+      _region(ctx,'bMinusA',G,A,_rgba(C.l,.34));
+      _region(ctx,'inter',G,A,_rgba(C.d,.60));
+    }
+    _stroke(ctx,G,C.m,1.8,null,true);_stroke(ctx,A,C.m,1.8,[5,4],true);return;
+  }
+  // AREA \u2014 blue shades; each of the three is distinct
+  if(key==='area_gt_mm2'){faint(A);if(G){_fillPoly(ctx,G,_rgba(C.m,.34));_stroke(ctx,G,C.d,2.4,null,true);}return;}
+  if(key==='area_auto_mm2'){faint(G);if(A){_fillPoly(ctx,A,_rgba(C.m,.34));_stroke(ctx,A,C.d,2.4,null,true);}return;}
+  if(key==='area_rel_err'){                           // the disagreement area (where the error comes from)
+    if(G&&A){_region(ctx,'aMinusB',G,A,_rgba(C.d,.5));_region(ctx,'bMinusA',G,A,_rgba(C.l,.55));
+      _stroke(ctx,G,C.m,1.8,null,true);_stroke(ctx,A,C.m,1.8,[5,4],true);}else{faint(G);faint(A);}return;
+  }
+  // DISTANCE \u2014 red shades; contour coloured by local distance
+  if(key==='hausdorff_mm'||key==='avg_surf_dist_mm'){
+    if(!G||!A){faint(G);faint(A);return;}
+    const dg=_minD(G,A);let mx=0;for(const d of dg)if(d>mx)mx=d;mx+=1e-9;
+    _halo(ctx,G,5,true);
+    for(let i=0;i<G.length;i++)_seg(ctx,G[i],G[(i+1)%G.length],_mix(C.l,C.d,dg[i]/mx),3.4);
+    if(key==='avg_surf_dist_mm'){
+      const da=_minD(A,G);let mx2=0;for(const d of da)if(d>mx2)mx2=d;mx2+=1e-9;
+      _halo(ctx,A,3.6,true);
+      for(let i=0;i<A.length;i++)_seg(ctx,A[i],A[(i+1)%A.length],_mix(C.l,C.d,da[i]/mx2),2.2);
+    }else{                                            // hausdorff: mark the single worst pair
+      _stroke(ctx,A,_rgba(C.m,.8),1.5,[5,4],true);
+      let wi=0;for(let i=1;i<dg.length;i++)if(dg[i]>dg[wi])wi=i;
+      let cj=0,best=1e18;for(let i=0;i<A.length;i++){const dx=G[wi].x-A[i].x,dy=G[wi].y-A[i].y,d=dx*dx+dy*dy;if(d<best){best=d;cj=i;}}
+      _stroke(ctx,[G[wi],A[cj]],C.d,2.4,null,false);_marker(ctx,G[wi].x,G[wi].y,4.5,C.d);
+    }
+    return;
+  }
+  // GEOMETRY \u2014 purple (manual) / amber (auto); each parameter highlighted distinctly
+  const isAuto=key.indexOf('auto')>=0,T=isAuto?A:G,O=isAuto?G:A;
+  faint(O);if(!T)return;
+  if(key.indexOf('perimeter')===0){_stroke(ctx,T,C.m,3.2,null,true);return;}
+  if(key.indexOf('compactness')===0){                 // shape vs an equal-area circle
+    _stroke(ctx,T,C.m,2.2,null,true);
+    let cx=0,cy=0;for(const p of T){cx+=p.x;cy+=p.y;}cx/=T.length;cy/=T.length;
+    let ar=0;for(let i=0;i<T.length;i++){const j=(i+1)%T.length;ar+=T[i].x*T[j].y-T[j].x*T[i].y;}ar=Math.abs(ar)/2;
+    const rr=Math.sqrt(ar/Math.PI);
+    ctx.save();ctx.setLineDash([7,5]);ctx.beginPath();ctx.arc(cx,cy,rr,0,7);
+    ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle=C.d;ctx.lineWidth=2;ctx.stroke();ctx.restore();
+    return;
+  }
+  const b=_bbox(T),W=b.x1-b.x0,H=b.y1-b.y0,mx=(b.x0+b.x1)/2,my=(b.y0+b.y1)/2,hor=W>=H;
+  _stroke(ctx,[{x:b.x0,y:b.y0},{x:b.x1,y:b.y0},{x:b.x1,y:b.y1},{x:b.x0,y:b.y1}],_rgba(C.m,.6),1.4,[5,4],true);
+  _stroke(ctx,T,_rgba(C.m,.8),1.5,null,true);
+  const MA=hor?{x:b.x0,y:my}:{x:mx,y:b.y0},MB=hor?{x:b.x1,y:my}:{x:mx,y:b.y1};
+  const NA=hor?{x:mx,y:b.y0}:{x:b.x0,y:my},NB=hor?{x:mx,y:b.y1}:{x:b.x1,y:my};
+  if(key.indexOf('major')>=0)_axis(ctx,MA,MB,C.m,3.2);          // major box axis
+  else if(key.indexOf('minor')>=0)_axis(ctx,NA,NB,C.m,3.2);     // minor box axis
+  else{_axis(ctx,MA,MB,C.d,3);_axis(ctx,NA,NB,C.l,3);}          // aspect ratio: both axes
+}
+function dMetVec(){
+  const c=MC(),ctx=MX();rzC();ctx.clearRect(0,0,c.width,c.height);
+  if(!iUrl)return;
+  const sc=gsc(),{ox,oy}=gof();showBase(sc,ox,oy);
+  const G=metCnt.gt?_toC(metCnt.gt,sc,ox,oy):null,A=metCnt.auto?_toC(metCnt.auto,sc,ox,oy):null;
+  drawMetricOverlay(ctx,metKey,G,A);
+}
+function saveRes(){be('saveResults',undefined,function(r){toast(r||'Saved \u2713')})}
+function saveGT(){be('saveGTMask',undefined,function(r){const x=JSON.parse(r);toast((x.ok?'\u2713 ':'\u26a0 ')+x.msg,x.ok?3200:3800)})}
+
+// ── page 5: 3D patch ──────────────────────────────────────────────────────────
+// Live slider handler: update labels, clamp edge<=thickness, rebuild (throttled).
+function onSlInput(){
+  const tv=parseInt(document.getElementById('slT').value);
+  document.getElementById('svT').textContent=(tv/10).toFixed(1)+' mm';
+  const se=document.getElementById('slE');se.max=tv;
+  if(parseInt(se.value)>tv)se.value=tv;
+  document.getElementById('svE').textContent=(parseInt(se.value)/10).toFixed(1)+' mm';
+  document.getElementById('svO').textContent=(parseInt(document.getElementById('slO').value)/10).toFixed(1)+' mm';
+  patch3DUpdate();
+}
+
+// ── block whole-page zoom (keep image-only canvas zoom) ───────────────────────
+// Ctrl+wheel must NOT scale the app/text. It only zooms the loaded image, and
+// only when the cursor is over the canvas (handled by zmC on the canvas itself).
+// This capture-phase listener cancels the browser's page-zoom default action
+// everywhere, but does not stop propagation, so zmC still receives the event
+// over the image.
+window.addEventListener('wheel',function(e){
+  if(e.ctrlKey){e.preventDefault();}
+},{passive:false,capture:true});
+// Block keyboard page-zoom (Ctrl +, Ctrl -, Ctrl 0).
+window.addEventListener('keydown',function(e){
+  if(e.ctrlKey&&(e.key==='+'||e.key==='-'||e.key==='='||e.key==='0')){e.preventDefault();}
+},{passive:false,capture:true});
+
+// ── keyboard ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.key==='F9'){e.preventDefault();hudToggle();return}   // perf HUD on/off
+  if(e.key==='F10'){e.preventDefault();dumpPerf();return}   // save perf report to file
+  if(e.key==='F8'){e.preventDefault();baselineTest();return}   // bare compositor/vsync baseline
+  if(e.ctrlKey&&e.key==='z'){e.preventDefault();if(curP===2)sUndo()}
+  if(e.ctrlKey&&(e.key==='y'||e.key==='Y')){e.preventDefault();if(curP===2)sRedo()}
+  if(e.key==='Enter'&&curP===2){e.preventDefault();if(!segCl)closeContour();else runPipeline();return}
+  if(e.key==='ArrowRight'&&!e.ctrlKey)go(curP+1);
+  if(e.key==='ArrowLeft'&&!e.ctrlKey)go(curP-1);
+  if(e.key==='Escape'&&curP===2)sReset();
+});
+// On resize/maximize, reflow the canvas back to a clean fit (no app scaling).
+window.addEventListener('resize',()=>{
+  if(curP>=1&&curP<=4&&_cm!==null){view={z:1,tx:0,ty:0};redraw()}
+  if(curP===5){v3dResize('gt');v3dResize('auto');}
+});
+
+// Middle-button pan: start only when pressed over the canvas, but track the drag
+// at window level so it keeps working if the cursor leaves the canvas. Capture
+// phase so it runs before the page's own handlers; preventDefault kills the
+// browser's middle-click autoscroll.
+window.addEventListener('mousedown',e=>{if(e.target===MC())panStart(e)},true);
+window.addEventListener('mousemove',panDrag,true);
+window.addEventListener('mouseup',panEnd,true);
+window.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault()});
+
+setSt('Waiting\u2026','');
+go(0);
+</script>
+</body>
+</html>
