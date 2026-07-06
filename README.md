@@ -1,8 +1,10 @@
 # IMTOP — wound annotator
 
+[![Paper](https://img.shields.io/badge/Paper-PDF-b31b1b.svg)](IMTOP_paper.pdf)
+
 A desktop tool to **calibrate, segment and measure wounds from a single
 photograph**, and to preview/export a printable 3D patch. It is the software
-released alongside the IMTOP (*IMage-TO-Print wound dressings*) paper.
+released alongside the IMTOP (*IMage-TO-Print wound dressings*) [paper](IMTOP_paper.pdf).
 
 The UI is an embedded web view (`ui.html`) driven by a Python/Qt backend over
 `QWebChannel`. The workflow is:
