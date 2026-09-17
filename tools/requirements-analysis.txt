@@ -1,0 +1,6 @@
+# Extra packages for the reproducibility scripts in tools/.
+# tools/batch_run.py needs only the app's requirements.txt;
+# tools/montecarlo_distortion.py needs these as well:
+#   pip install -r requirements.txt -r tools/requirements-analysis.txt
+pandas==2.2.1
+matplotlib==3.9.0

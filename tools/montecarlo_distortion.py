@@ -6,7 +6,7 @@ IMTOP / Wound project -- Monte Carlo prediction of the GEOMETRIC DISTORTION
 (relative AREA error) of the fabricated 3D patch, combining the three error
 sources of the pipeline:
 
-    SegE   = segmentation error      (data-driven, bootstrap from results_all.csv)
+    SegE   = segmentation error      (data-driven, bootstrap from results_clean.csv)
     ScaleE = scale-calibration error (two-point model, gaussian pixel noise)
     PrE    = printing  error          (Exp. C, declared mean/sd)
 
@@ -55,8 +55,8 @@ ASSUMPTIONS & LIMITS
 * ScaleE and PrE are treated as INDEPENDENT of SegE and of each other.
   In reality scale noise slightly correlates with segmentation difficulty
   (blur, low contrast) -> this is an optimistic (independence) assumption.
-* SegE is sampled non-parametrically from the 444 real "ok" cases, so it
-  carries the true (skewed, heavy-tailed) shape -- no distributional fit.
+* SegE is sampled non-parametrically from the 415 real "ok" cases (outliers
+  removed), so it carries the true (skewed, heavy-tailed) shape -- no fit.
 * L is taken from bbox_gt_major_mm (a length in MM used as a magnitude proxy
   for the calibration fiducial length in PX).  Only the ratio sigma/L matters;
   set L_REF_OVERRIDE to the true fiducial pixel length for production numbers.
@@ -64,10 +64,16 @@ ASSUMPTIONS & LIMITS
 
 USAGE
 -----
-    python montecarlo_distortion.py            # full run (CSVs + 3 figures + findings.md)
-    python montecarlo_distortion.py --selftest # fast sanity checks, no files written
+    python tools/montecarlo_distortion.py            # full run (CSVs + 4 figures + findings.md)
+    python tools/montecarlo_distortion.py --selftest # fast sanity checks, no files written
+
+Needs pandas + matplotlib on top of the app's requirements:
+    pip install -r requirements.txt -r tools/requirements-analysis.txt
+Paths are resolved against the project root (the parent of tools/), so the
+script reads and writes the same files whatever the current directory.
 """
 
+import os
 import sys
 import numpy as np
 import pandas as pd
@@ -96,7 +102,8 @@ plt.rcParams.update({
 # =============================================================================
 # PARAMETERS  (edit here)
 # =============================================================================
-CSV_PATH        = "results_all.csv"   # input data (Exp. A)
+PROJECT_DIR     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CSV_PATH        = os.path.join(PROJECT_DIR, "Graphs", "results_clean.csv")   # input data (Exp. A, outliers removed)
 SEED            = 42                   # fixed RNG seed -> reproducible
 N               = 20000               # MC samples per back-end
 
@@ -114,7 +121,7 @@ EXCEED_A        = 0.05               # 5%
 EXCEED_B        = 0.10               # 10%
 
 # --- output ---
-OUTDIR          = "."
+OUTDIR          = PROJECT_DIR         # CSVs, findings.md and the figures land in the project root
 SUMMARY_CSV     = "montecarlo_summary.csv"
 SAMPLES_CSV     = "montecarlo_samples.csv"
 SAMPLES_KEEP    = 2000               # rows per back-end kept in the samples CSV
@@ -293,12 +300,29 @@ def run_simulation():
         # --- Sobol first-order contributions ---
         sob = sobol_first_order(rng, vals, N, SIGMA_PX, L, PR_MEAN, PR_SD)
 
+        # --- first-order variance SHARES (freeze the other two sources at their
+        #     sample mean, vary one) -- this is exactly what Fig. 8 left
+        #     (mc_contrib) reports, expressed as % of the summed contributions. ---
+        mes, msc, mep = np.mean(eps_seg), np.mean(eps_scl), np.mean(eps_prt)
+        vc_seg   = np.var((1 + eps_seg) * (1 + msc)     * (1 + mep)     - 1.0, ddof=1)
+        vc_scale = np.var((1 + mes)     * (1 + eps_scl) * (1 + mep)     - 1.0, ddof=1)
+        vc_pre   = np.var((1 + mes)     * (1 + msc)     * (1 + eps_prt) - 1.0, ddof=1)
+        vc_tot   = vc_seg + vc_scale + vc_pre
+        var_share = {"SegE": vc_seg / vc_tot,
+                     "ScaleE": vc_scale / vc_tot,
+                     "PrE": vc_pre / vc_tot}
+
         # --- store ---
         results[b] = {
             "eps_seg": eps_seg, "eps_scale": eps_scl, "eps_print": eps_prt,
             "total": total, "rss_norm": rss_norm,
             "sd_rss": sd_rss, "mean_rss": mean_rss,
             "sobol": sob,
+            "var_share": var_share,
+            "mean_abs_seg":     float(np.mean(np.abs(vals))),   # data property -> exact
+            "median_abs_total": float(np.median(np.abs(total))),
+            "p_gt_5":  exceed(total, EXCEED_A),
+            "p_gt_10": exceed(total, EXCEED_B),
             "seg_empirical": describe(vals),
             "n_seg_cases": int(vals.shape[0]),
         }
@@ -675,6 +699,21 @@ def main():
         s = results[b]["sobol"]
         print("  %-9s SegE=%.3f ScaleE=%.3f PrE=%.3f"
               % (b, s["SegE"], s["ScaleE"], s["PrE"]))
+
+    # ---- focused per-back-end report (the four requested quantities) ----
+    print("\n" + "=" * 78)
+    print("PER-BACK-END REPORT  (input: %s, seed=%d, N=%d)" % (CSV_PATH, SEED, N))
+    print("=" * 78)
+    for b in backends:
+        r = results[b]
+        vs = r["var_share"]
+        print("\n%s:" % b)
+        print("  1) mean |E_Seg|                  = %5.2f %%" % (r["mean_abs_seg"] * 100))
+        print("  2) variance shares               SegE=%5.1f %%  ScaleE=%4.1f %%  PrE=%5.2f %%"
+              % (vs["SegE"] * 100, vs["ScaleE"] * 100, vs["PrE"] * 100))
+        print("  3) median |total patch error|    = %5.2f %%" % (r["median_abs_total"] * 100))
+        print("  4) P(|error|>5%%) = %5.2f %%        P(|error|>10%%) = %5.2f %%"
+              % (r["p_gt_5"] * 100, r["p_gt_10"] * 100))
 
     print("\nWritten: %s, %s, %s"
           % (SUMMARY_CSV, SAMPLES_CSV, FINDINGS_MD))

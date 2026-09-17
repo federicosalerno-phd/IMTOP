@@ -13,6 +13,7 @@ manifest.csv
 perf_report.txt
 *.stl
 _smoke.csv
+findings.md
 
 # ── Generated figures & analysis session files (Graphs/) ────────────────────
 # The R scripts (Graphs/*.R) and CSV data are tracked; their rendered outputs
@@ -37,8 +38,9 @@ env/
 dev/
 
 # ── Local tooling / editor / OS cruft ───────────────────────────────────────
+# Anything that belongs to one machine and not to the project goes in
+# .git/info/exclude instead, which is not part of the repository.
 .vscode/
-.claude/
 *.bak
 desktop.ini
 .DS_Store

@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "IMTOP — IMage-TO-Print wound dressings"
+title: "IMTOP: IMage-TO-Print wound dressings"
 abstract: >-
   Desktop tool to calibrate, segment and measure wounds from a single
   photograph (Segment Anything ViT-B / GrabCut / Watershed back-ends) and
@@ -12,8 +12,8 @@ authors:
     affiliation: "Politecnico di Torino"
     email: federico.salerno@polito.it
     # orcid: "https://orcid.org/0000-0001-5282-9513"   # add if available
-version: "1.0.0"
-date-released: "2026-06-13"
+version: "2.0.0"
+date-released: "2026-09-17"
 license: MIT
 url: "https://github.com/federicosalerno-phd/IMTOP"
 repository-code: "https://github.com/federicosalerno-phd/IMTOP"

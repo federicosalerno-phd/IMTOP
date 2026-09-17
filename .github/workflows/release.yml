@@ -1,0 +1,62 @@
+# Release: push a tag "vX.Y.Z" and this job attaches IMTOP-vX.Y.Z.zip to a
+# GitHub Release. The zip is `git archive` of that tag, so it contains exactly
+# the tracked files: the app, the installer, the tools and the R scripts. The
+# clinical images, the SAM checkpoint and dev/ are git-ignored and therefore
+# never in it. .github and .gitattributes are export-ignored.
+#
+#   git tag v2.0.0
+#   git push origin v2.0.0
+#
+# The tag must match APP_VERSION in imtop/config.py; the job refuses otherwise,
+# so the About box and the download name can never disagree.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches APP_VERSION
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(sed -n 's/^APP_VERSION = "\(.*\)"/\1/p' imtop/config.py)"
+          echo "tag=$tag  APP_VERSION=$ver"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::Tag v$tag does not match APP_VERSION \"$ver\" in imtop/config.py. Bump one of them."
+            exit 1
+          fi
+
+      - name: Build the zip
+        run: |
+          name="IMTOP-${GITHUB_REF_NAME}"
+          git archive --format=zip --prefix="$name/" -o "$name.zip" HEAD
+          echo "ZIP=$name.zip" >> "$GITHUB_ENV"
+
+      - name: Check what went in
+        run: |
+          unzip -l "$ZIP"
+          # The user-facing entry points must be there...
+          for f in install.cmd installer/install.ps1 installer/quips.txt requirements.txt imtop/__main__.py imtop/ui/index.html; do
+            unzip -l "$ZIP" | grep -q "/$f\$" || { echo "::error::$f is missing from the zip"; exit 1; }
+          done
+          # ...and the things that must never ship must not be.
+          if unzip -l "$ZIP" | grep -Eq 'Wound Image Dataset|\.pth$|^.*/dev/'; then
+            echo "::error::the zip contains data that must not be released"; exit 1
+          fi
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}
+          generate_release_notes: true
+          body: |
+            **Install on Windows:** download `${{ env.ZIP }}`, extract it, double-click `install.cmd`.
+            No prerequisites: the installer finds or installs Python 3.11, builds a private environment and puts IMTOP on the Desktop and in the Start Menu.

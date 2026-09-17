@@ -1,0 +1,368 @@
+/* ============================================================================
+   Widgets.
+
+   House rule: **fills, never outlines.** No control has a border, a button,
+   a chip or a card is told apart from what is behind it by being a lighter
+   (or gold-tinted) surface, and its states are fills too: rest -> hover ->
+   selected. Nothing in this app draws a hairline to separate content either;
+   bands change colour instead.
+
+   Review Desk rules of thumb kept:
+     primary button  = gold fill, ink text, radius 5
+     secondary       = --control fill, radius 5
+     input           = --input fill, height 32, radius 4, gold caret
+     card            = --card fill, radius 6
+   ========================================================================== */
+
+/* -- buttons --------------------------------------------------------------- */
+/* Fixed heights, so a taller glyph in a label can never move a row. */
+.btn{
+  display:flex;align-items:center;justify-content:center;
+  height:31px;border-radius:var(--r);font-size:var(--fs);font-weight:500;
+  padding:0 12px;transition:background .1s,color .1s;
+  white-space:nowrap;
+}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;
+         stroke-linecap:round;stroke-linejoin:round;margin-right:7px;flex-shrink:0}
+/* Trailing glyph (the chevron on Next / Confirm): same icon set, other side.
+   Every glyph in this app is an inline SVG stroked with the button's own text
+   colour, so it can never be a stray white dingbat from a fallback font. */
+.btn svg.r{margin-right:0;margin-left:7px}
+.btn svg.r:first-child{margin-left:0}
+
+/* primary: the one action that moves the workflow forward */
+.btn-primary{background:var(--accent);color:var(--ink);font-weight:600}
+.btn-primary:hover:not(:disabled){background:#FFD45E}
+.btn-primary:active:not(:disabled){background:var(--accent-dim)}
+.btn-primary:disabled{background:var(--control);color:var(--text-faint)}
+
+/* secondary: everything else */
+.btn-2{background:var(--control);color:var(--text-soft)}
+.btn-2:hover:not(:disabled){background:var(--hover);color:var(--text)}
+.btn-2:active:not(:disabled){background:var(--control)}
+.btn-2:disabled{background:var(--panel2);color:var(--text-faint)}
+
+/* destructive */
+.btn-danger{background:var(--card-err);color:var(--text-err)}
+.btn-danger:hover{background:var(--card-err-hi)}
+
+/* Below this width the action buttons keep their icons and drop their labels:
+   six full-width tabs, the three labelled buttons and the status pill need
+   1302 px, and a tab label must never be clipped, down to the 1024 px minimum.
+   (It used to be 1400: opening an image left the top bar, so there is one
+   labelled button less to fit.) */
+@media (max-width:1310px){
+  .tb-r .btn-label{display:none}
+  .tb-r .btn svg{margin-right:0}
+  .tb-r .btn{padding:6px 8px}
+}
+
+.btn-wide{width:100%}
+.btn-grow{flex:1}
+/* Step 1 has nothing to go back to: the slot is kept, invisible, so the
+   primary button sits where it sits on every other step. */
+.rp-back-none{visibility:hidden}
+.btn-sm{height:27px;padding:0 10px;font-size:var(--fs-sm)}
+
+/* -- window buttons -------------------------------------------------------- */
+.wbtn{
+  width:42px;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text-dim);
+  transition:background .1s,color .1s;
+}
+.wbtn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.35;
+          stroke-linecap:round;stroke-linejoin:round}
+.wbtn:hover{background:var(--control);color:var(--text)}
+.wbtn-close:hover{background:var(--err);color:#FFFFFF}
+
+/* -- window resize edges (frameless window) -------------------------------- */
+/* Thin invisible strips; the drag itself is handed to Windows, which is why
+   snapping and edge magnetism still work. */
+.rz{position:fixed;z-index:10001}
+.rz-n{top:0;left:12px;right:12px;height:5px;cursor:ns-resize}
+.rz-s{bottom:0;left:12px;right:12px;height:5px;cursor:ns-resize}
+.rz-w{left:0;top:12px;bottom:12px;width:5px;cursor:ew-resize}
+.rz-e{right:0;top:12px;bottom:12px;width:5px;cursor:ew-resize}
+.rz-nw{top:0;left:0;width:12px;height:12px;cursor:nwse-resize}
+.rz-ne{top:0;right:0;width:12px;height:12px;cursor:nesw-resize}
+.rz-sw{bottom:0;left:0;width:12px;height:12px;cursor:nesw-resize}
+.rz-se{bottom:0;right:0;width:12px;height:12px;cursor:nwse-resize}
+body.maximized .rz{display:none}
+
+/* -- status pill ----------------------------------------------------------- */
+/* One width whatever the text says: the four buttons to its left, and the
+   step tabs, never move when the status changes. Long texts are cut short. */
+.stpill{
+  display:flex;align-items:center;flex-shrink:0;width:150px;
+  padding:5px 11px;border-radius:var(--r-pill);
+  font-size:var(--fs-sm);color:var(--text-dim);background:var(--panel2);
+}
+.stpill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd{width:6px;height:6px;border-radius:50%;background:var(--text-faint);
+    margin-right:7px;flex-shrink:0;transition:background .25s}
+.sd.ok{background:var(--ok)}
+.sd.err{background:var(--err)}
+.sd.busy{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* -- step tabs ------------------------------------------------------------- */
+/* The selected step is a gold-tinted pill, not an underline. All six are the
+   same width and left-aligned, so the numbers and the initials line up. */
+.tab{
+  display:flex;align-items:center;justify-content:flex-start;
+  width:var(--tab-w);min-width:84px;flex-shrink:1;
+  padding:7px 11px;border-radius:var(--r);
+  cursor:pointer;font-size:var(--fs);font-weight:500;color:var(--text-faint);
+  white-space:nowrap;overflow:hidden;transition:background .1s,color .1s;
+}
+.tab span{overflow:hidden;text-overflow:ellipsis}
+.tab:hover{background:var(--control);color:var(--text-soft)}
+.tab.active{background:var(--card-sel);color:var(--accent)}
+.tab.done{color:var(--text-dim)}
+.tn{
+  width:17px;height:17px;border-radius:50%;flex-shrink:0;margin-right:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:600;
+  background:var(--control);color:var(--text-faint);
+  transition:background .1s,color .1s;
+}
+.tab.active .tn{background:var(--accent);color:var(--ink)}
+.tab.done .tn{background:var(--card-sel-hi);color:var(--accent)}
+
+/* -- canvas toolbar -------------------------------------------------------- */
+.ct{
+  width:24px;height:24px;border-radius:var(--r-xs);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text-dim);
+  transition:background .1s,color .1s;
+}
+.ct svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;
+        stroke-linecap:round;stroke-linejoin:round}
+.ct:hover{background:var(--control);color:var(--text)}
+.ct.on{background:var(--control);color:var(--accent)}
+.ct.danger{color:var(--text-err)}
+.ct.danger:hover{background:var(--card-err)}
+/* A gap, not a rule: toolbar groups are separated by space. */
+.ctsep{width:10px;flex-shrink:0}
+.cthint{font-size:var(--fs-sm);color:var(--text-faint);margin-left:6px;flex:1;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Which photo is open, at the far end of the toolbar. */
+.ct-file{width:13px;height:13px;flex-shrink:0;margin:0 7px 0 10px;
+         stroke:var(--text-faint);fill:none;stroke-width:1.7;
+         stroke-linecap:round;stroke-linejoin:round}
+.ct-fname{font-size:var(--fs-sm);color:var(--text-dim);flex-shrink:0;max-width:280px;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* -- on-canvas chrome ------------------------------------------------------ */
+/* Opaque enough to read over any photo, so it needs no outline either. */
+.covl{
+  position:absolute;top:10px;left:10px;pointer-events:none;
+  background:#101013F2;border-radius:var(--r-md);
+  padding:6px 10px;font-size:var(--fs-sm);color:var(--text-dim);line-height:1.7;
+}
+.czoom{
+  position:absolute;bottom:8px;right:8px;pointer-events:none;
+  background:#101013E6;border-radius:var(--r-xs);
+  padding:4px 9px;font-size:11px;color:var(--text-faint);
+}
+
+/* -- inputs ---------------------------------------------------------------- */
+/* Focus is an inset ring (no layout shift, no permanent outline). */
+.input{
+  height:32px;width:100%;
+  background:var(--input);color:var(--text);caret-color:var(--accent);
+  border:none;border-radius:var(--r-xs);
+  padding:0 12px;font-size:var(--fs);
+}
+.input:focus{box-shadow:inset 0 0 0 1px var(--accent)}
+.input::placeholder{color:var(--text-faint)}
+.input-unit{font-size:var(--fs);color:var(--text-dim);margin-left:8px;flex-shrink:0}
+
+/* Number stepper: two triangles on the input's own fill, nothing behind them.
+   Faint until the pointer is on the field, gold under the pointer. */
+.numwrap{position:relative;flex:1;min-width:0;display:flex}
+.numwrap .input{padding-right:28px}
+.spin{
+  position:absolute;right:7px;top:0;bottom:0;width:14px;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.spin-b{
+  height:12px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text-faint);
+  transition:color .1s;
+}
+.numwrap:hover .spin-b{color:var(--text-dim)}
+.spin-b:hover{color:var(--accent)}
+.spin-b svg{width:9px;height:5.5px;fill:currentColor;stroke:none;display:block}
+
+/* -- dropdown (js/widgets.js) ---------------------------------------------- */
+/* A native <select> hands its popup to the platform, which paints it with its
+   own colours outside the page: inside the embedded browser you cannot see
+   which row you are about to pick. This one is a list in the page. */
+.combo{
+  flex:1;min-width:0;height:28px;display:flex;align-items:center;
+  padding:0 6px 0 10px;border-radius:var(--r-xs);cursor:pointer;
+  background:var(--control);color:var(--text-soft);
+  transition:background .1s,color .1s;
+}
+.combo:hover,.combo.open{background:var(--hover);color:var(--text)}
+.combo-v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+       font-size:var(--fs)}
+.combo-c{width:13px;height:13px;flex-shrink:0;margin-left:4px;
+       stroke:currentColor;fill:none;stroke-width:1.9;
+       stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+.combo.open .combo-c{transform:rotate(180deg)}
+/* Fixed position: no scroll container can clip it. A fill and a shadow tell it
+   from the panel behind, never an outline. */
+.combopop{
+  position:fixed;z-index:10002;
+  background:var(--panel3);border-radius:var(--r-md);
+  padding:4px;box-shadow:0 10px 26px #00000099;
+}
+.combo-opt{
+  padding:6px 10px;border-radius:var(--r-xs);cursor:pointer;
+  font-size:var(--fs);color:var(--text-soft);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.combo-opt:hover{background:var(--control);color:var(--text)}
+.combo-opt.combo-on{background:var(--card-sel);color:var(--accent);font-weight:600}
+.combo-opt.combo-on:hover{background:var(--card-sel-hi)}
+
+/* range: gold thumb on a dark track */
+input[type=range]{
+  -webkit-appearance:none;flex:1;min-width:0;height:3px;
+  background:var(--track);border-radius:2px;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--accent);cursor:pointer;
+}
+.slrow{display:flex;align-items:center;padding:4px 0}
+.slrow>*+*{margin-left:9px}
+/* The value has a fixed width: a longer one ("20.3 mm") must never shorten
+   the track, or the thumb would slide on its own. The labels are static. */
+.sl-l{font-size:var(--fs);color:var(--text-dim);min-width:58px;flex-shrink:0}
+.sl-v{font-size:var(--fs);font-weight:600;width:56px;text-align:right;
+      color:var(--text);flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* -- cards ----------------------------------------------------------------- */
+.card{background:var(--card);border-radius:var(--r-md);padding:9px 12px}
+
+/* -- text that must never spill out of its box ----------------------------- */
+/* fitOneLine() in js/widgets.js measures scrollWidth against clientWidth, which
+   only means something when the text is on one line and the box clips. */
+.fit{white-space:nowrap;overflow:hidden}
+
+/* -- method list (panel 4) ------------------------------------------------- */
+.mitem{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 11px;margin-bottom:5px;
+  background:var(--card);border-radius:var(--r-md);
+  cursor:pointer;transition:background .1s;
+}
+.mitem:hover{background:var(--card-hi)}
+.mitem.sel{background:var(--card-sel)}
+.mitem.sel:hover{background:var(--card-sel-hi)}
+.mitem.off{opacity:.45;cursor:not-allowed}
+.mitem-name{font-size:var(--fs);font-weight:500;color:var(--text-soft)}
+.mitem.sel .mitem-name{color:var(--accent)}
+.mbadge{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:var(--r-pill);
+        letter-spacing:.3px;background:var(--control);color:var(--text-faint)}
+.mitem.sel .mbadge{background:var(--accent);color:var(--ink)}
+
+/* -- metric rows (panel 5) ------------------------------------------------- */
+/* The group marker is a dot, not a rule. */
+.mg{
+  display:flex;align-items:center;
+  font-size:var(--fs-xs);font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+  padding:14px 4px 6px;
+}
+.mg::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;
+            margin-right:9px;flex-shrink:0}
+.mg:first-child{padding-top:3px}
+.mrow{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:5px 8px;border-radius:var(--r-xs);cursor:pointer;
+  font-size:var(--fs);transition:background .1s;
+}
+.mrow:hover{background:var(--control)}
+.mrow.active{background:var(--control);box-shadow:inset 3px 0 0 var(--gc,var(--accent))}
+.ml{color:var(--text-dim);flex:1;min-width:0;padding-right:8px}
+.mv{font-weight:600;color:var(--text);text-align:right;min-width:56px;
+    font-variant-numeric:tabular-nums;letter-spacing:.2px}
+
+/* -- key/value rows (panel 6) ---------------------------------------------- */
+/* Separated by their own fill and a 3px gap instead of a rule. */
+.pi-row{
+  display:flex;justify-content:space-between;
+  padding:5px 9px;margin-bottom:3px;
+  background:var(--panel3);border-radius:var(--r-xs);
+  font-size:var(--fs);
+}
+.pi-l{color:var(--text-dim)}
+.pi-row span:last-child{font-variant-numeric:tabular-nums;color:var(--text-soft)}
+
+/* -- inline status chips --------------------------------------------------- */
+.chip{
+  display:inline-flex;align-items:center;
+  padding:5px 12px;border-radius:var(--r-pill);
+  font-size:var(--fs);font-weight:500;
+  background:var(--control);color:var(--text-dim);
+}
+.chip-ok{background:var(--card-sel);color:var(--accent)}
+.chip-info{background:var(--card-info);color:var(--blue)}
+
+/* -- toast ----------------------------------------------------------------- */
+#toast{
+  position:fixed;bottom:16px;left:50%;
+  transform:translateX(-50%) translateY(6px);
+  background:var(--control);border-radius:var(--r-md);
+  padding:9px 16px;font-size:var(--fs);color:var(--text);
+  opacity:0;transition:opacity .18s,transform .18s;pointer-events:none;
+  white-space:nowrap;z-index:9999;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* -- blocking overlays ----------------------------------------------------- */
+/* While the app works (an image decoding, a segmentation, a PDF) the work
+   area sits under a scrim with one filled card in the middle; the title bar
+   and the steps stay on screen, so the window never turns black. Shown and
+   hidden instantly, and hidden means display:none, not opacity 0: an
+   invisible layer with a spinner turning in it would keep the compositor
+   producing a frame every vsync for as long as the app is open. */
+#loading,#samld{
+  position:fixed;left:0;right:0;bottom:0;top:calc(var(--tbar-h) + var(--tab-h));
+  background:var(--scrim);
+  display:none;align-items:center;justify-content:center;
+}
+#loading{z-index:9998}
+#samld{z-index:9997}
+#loading.show,#samld.show{display:flex}
+.ld-card{
+  display:flex;flex-direction:column;align-items:center;
+  padding:22px 30px 20px;background:var(--panel3);border-radius:var(--r-lg);
+}
+/* The one ring in the app that is geometry, not decoration. */
+.spinner{
+  width:24px;height:24px;border:2px solid var(--control);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+#ldT{font-size:var(--fs);color:var(--text-dim);margin-top:12px}
+
+.samld-card{width:300px;display:flex;flex-direction:column;align-items:center;padding:28px 30px 24px;
+            background:var(--panel3);border-radius:var(--r-lg)}
+.samld-title{font-size:var(--fs);font-weight:500;color:var(--text-dim);letter-spacing:.2px;margin-bottom:18px}
+.samld-pct{display:flex;align-items:flex-start;color:var(--text);line-height:1;margin-bottom:20px}
+.samld-pct #samldPct{font-size:52px;font-weight:300;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.samld-pctsym{font-size:20px;font-weight:300;color:var(--text-dim);margin-top:5px;margin-left:3px}
+.samld-track{width:100%;height:3px;border-radius:var(--r-pill);background:var(--track);overflow:hidden}
+/* Fill animates via transform: scaleX (GPU-composited) -- never via width (layout). */
+.samld-fill{
+  height:100%;width:100%;border-radius:var(--r-pill);
+  transform:scaleX(0);transform-origin:left center;will-change:transform;
+  background:linear-gradient(90deg,var(--accent-dim),var(--accent));
+}
+.samld-stage{font-size:var(--fs-sm);color:var(--text-faint);margin-top:14px;min-height:16px;letter-spacing:.2px}

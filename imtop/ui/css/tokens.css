@@ -1,0 +1,114 @@
+/* ============================================================================
+   Design tokens, the single place where the look is defined.
+   Palette, radii and type are the Review Desk ones (Get-Palette in
+   _app/scripts/ui_common.ps1), so the two apps read as one family.
+   Change a value here and both the DOM and the canvas overlays follow: the
+   canvas colours are read back from these variables at runtime (js/theme.js).
+   ========================================================================== */
+:root{
+  /* ── surfaces ── */
+  --bg:#0D0D0F;          /* window background            */
+  --panel:#101013;       /* titlebar, tabbar, side panel */
+  --panel2:#121216;      /* toolbars                     */
+  --panel3:#16161B;      /* raised strips                */
+  --control:#1E1E24;     /* secondary buttons            */
+  --track:#1A1A20;       /* slider / progress tracks     */
+  --line:#26262B;        /* kept for the few non-divider uses */
+  --hover:#33333B;       /* hover fill                   */
+  --input:#141417;       /* text inputs                  */
+  --dropdown:#141418;    /* select popups                */
+  --card:#16161B;        /* cards                        */
+  --card-hi:#1C1C22;     /* card, hovered                */
+  --card-sel:#2A2519;    /* selected card (gold tint)    */
+  --card-sel-hi:#332C1D;
+  --card-err:#2C1F1E;
+  --card-err-hi:#3A2724;
+  --card-info:#161B26;   /* informational (blue tint)    */
+  --stage:#16161B;       /* the two 3D viewer cards, a step above --bg */
+  --scrim:#0D0D0FB8;     /* over the work area while the app is busy    */
+
+  /* ── text ── */
+  --text:#E6E6EC;
+  --text-soft:#C8C8D0;
+  --text-dim:#8A8A94;
+  --text-faint:#4E4E57;
+
+  /* ── accent ── */
+  --accent:#F5C542;      /* gold: primary action, active state */
+  --accent-dim:#C9A033;  /* gold, pressed                      */
+  --ink:#0D0D0F;         /* text drawn ON gold                 */
+  --sel:#3B9EFF;         /* text selection                     */
+
+  /* ── status ── */
+  --ok:#57B26A;
+  --err:#B0524A;
+  --text-err:#E8705B;
+
+  /* ── the Review Desk "kind" hues, kept as the named palette to pick from ── */
+  --green:#57B26A;
+  --teal:#3FBFB0;
+  --blue:#5B8DEF;
+  --purple:#B07CF0;
+
+  /* ── canvas roles ── read by js/theme.js ── */
+  --c-gt:#57B26A;        /* manual (ground truth) contour */
+  --c-auto:#E8705B;      /* automatic contour             */
+  --c-point:#F5C542;     /* control point                 */
+  --c-first:#57B26A;     /* first point / close target    */
+  --c-cal:#F5C542;       /* calibration ruler             */
+  --c-badge-bg:#16161B;  /* on-canvas label background    */
+  --stage-pad: 8px;     /* dark margin around the photo, so it never touches an edge */
+  --img-radius:7px;      /* corner rounding of the photo itself; 0 disables it.
+                            Applied in device pixels at any zoom (canvas.js). */
+  /* The 3D materials are lit and environment-mapped, which desaturates them:
+     these are deliberately more saturated than their 2D counterparts so the
+     patches read as solid objects in the same two colours. */
+  --c-3d-gt:#2FA352;     /* 3D patch, manual              */
+  --c-3d-gt-edge:#17612F;
+  --c-3d-auto:#D9452E;   /* 3D patch, automatic           */
+  --c-3d-auto-edge:#7C2318;
+
+  /* ── metric groups: light / mid / dark shade of each hue ── */
+  --ov-l:#BFE3C8; --ov-m:#57B26A; --ov-d:#2F7A46;   /* overlap        */
+  --ar-l:#C6D8F9; --ar-m:#5B8DEF; --ar-d:#2F5EC2;   /* area           */
+  --di-l:#F7C9C0; --di-m:#E8705B; --di-d:#B0524A;   /* distance       */
+  --gm-l:#E2CFF9; --gm-m:#B07CF0; --gm-d:#7B44C4;   /* manual geometry*/
+  --ga-l:#FAE6A8; --ga-m:#F5C542; --ga-d:#B8901F;   /* auto geometry  */
+
+  /* ── radii (Review Desk: 4 inputs · 5 buttons · 6 cards · 7 panels) ── */
+  --r-xs:4px;
+  --r:5px;
+  --r-md:6px;
+  --r-lg:7px;
+  --r-pill:99px;
+
+  /* ── type ── */
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  /* The app name only. A modern humanist sans if the machine has one, Segoe
+     UI Variable next (Windows 11), plain Segoe UI last. */
+  --font-brand:'Abadi','Abadi MT Std','Segoe UI Variable Display','Selawik',
+               'Segoe UI',system-ui,sans-serif;
+  --mono:Consolas,'Courier New',monospace;
+  --fs:12.5px;           /* body           */
+  --fs-sm:11.5px;        /* captions       */
+  --fs-xs:10px;          /* section labels */
+  --fs-lg:13.5px;        /* panel titles   */
+
+  /* ── metrics ── */
+  /* The title band runs the whole width of the window. Its lower profile,
+     measured down from the window's top edge, is --tbar-h on the left (where
+     the logo and the name are), then a straight oblique run of --tbar-slant,
+     then --tbar-thin all the way to the right edge (where the window buttons
+     are). The two vertices of that run are rounded by --tbar-join. */
+  --tbar-h:44px;
+  --tbar-thin:28px;
+  --tbar-slant:38px;
+  --tbar-join:8px;
+  --tbar-bg:#1E1E24;     /* the band's fill: a flat palette colour (the same one
+                            secondary buttons use), never a gradient */
+  --tab-h:42px;          /* the step row under it */
+  --tab-w:132px;         /* every step tab is this wide, so the numbers and the
+                            initials line up in a column; they shrink together,
+                            never one at a time, when the window is narrow */
+  --rp-w:244px;          /* right panel     */
+}

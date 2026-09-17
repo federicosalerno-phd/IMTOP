@@ -1,0 +1,67 @@
+# Status lines the installer shows while it works. One per line, UTF-8.
+# Format:  step|text   where step is one of
+#   any       shown during every step
+#   python    finding or installing Python 3.11
+#   venv      creating .venv
+#   pip       upgrading pip
+#   torch     installing PyTorch (the long one)
+#   deps      installing the rest of requirements.txt
+#   check     import check
+#   shortcut  Desktop + Start Menu shortcuts
+#   done      shown once, when everything is installed
+# Lines starting with # are ignored. Keep them short: one line, no dashes.
+
+any|Looking busy. Actually busy, too.
+any|This is the part where you go and get a coffee.
+any|Compiling excuses in case this fails.
+any|Progress bars are a social construct.
+any|Still faster than doing it by hand.
+any|Feeding the hamsters that power the internet.
+any|Pretending this is the first time it has done this.
+any|Reticulating splines. Not really, but it sounds professional.
+any|If this were a film, this would be the montage.
+any|Counting to a very large number.
+any|Making Windows do things it did not ask for.
+any|Someone, somewhere, is compiling something. Not us, luckily.
+any|You could read the README while you wait. Nobody does.
+any|Downloading the internet. The useful parts only.
+any|Nothing has caught fire yet. Keep it that way.
+
+python|Looking for Python 3.11. Not 3.14. Never 3.14.
+python|Asking Windows where it hid Python. Windows is thinking.
+python|Checking the registry, the last honest place in Windows.
+python|Downloading Python. Yes, the whole language.
+python|Installing Python 3.11 quietly, so it does not wake the other Pythons.
+
+venv|Building a small private universe for the packages to live in.
+venv|Creating a virtual environment. Like a real one, but with less dust.
+venv|Digging a hole and calling it .venv.
+
+pip|Upgrading pip so pip stops asking us to upgrade pip.
+pip|pip is checking whether pip is the latest pip. It never is.
+pip|Updating the updater. It is updaters all the way down.
+
+torch|Downloading PyTorch. It is large. It knows.
+torch|Fetching several hundred megabytes of linear algebra.
+torch|Torch is most of this install and all of the wait.
+torch|Somewhere a data centre just felt a disturbance.
+torch|This is the big one. Go on, stretch your legs.
+torch|Teaching the CPU to do what a GPU does, slowly.
+
+deps|Installing Qt, which is a browser pretending to be a window.
+deps|Fetching OpenCV, NumPy, SciPy and the rest of the usual suspects.
+deps|pip is resolving dependencies. pip enjoys this. Nobody else does.
+deps|Downloading Segment Anything. Not everything. Anything.
+deps|Collecting wheels. Not the round kind.
+
+check|Making sure everything imports before we brag about it.
+check|Trust, but verify. Mostly verify.
+check|Asking every package whether it is really there.
+
+shortcut|Putting an icon on your desktop like it is 1998.
+shortcut|Creating shortcuts. The long cuts are for the developers.
+shortcut|Pinning a little gold square to the Start Menu.
+
+done|Done. That was less painful than the paperwork.
+done|Installed. Go and measure something.
+done|All set. The wound is not going to segment itself.

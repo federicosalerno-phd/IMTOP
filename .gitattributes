@@ -1,2 +1,18 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# The Windows launchers must keep CRLF: cmd.exe misreads LF-only batch files,
+# and PowerShell 5.1 is happier with CRLF too. Whatever the checkout, and
+# whatever git archive produces for the release zip.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binaries, never normalised
+*.png binary
+*.ico binary
+*.pth binary
+
+# Left out of the release zip (git archive honours these)
+.github export-ignore
+.gitattributes export-ignore

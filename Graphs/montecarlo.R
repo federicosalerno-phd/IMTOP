@@ -1,6 +1,6 @@
 # ============================================================
 # montecarlo.R  --  previsione di distorsione (error budget) via Monte Carlo, in R.
-# Legge results_full.csv (per SegE servono TUTTI i casi reali, anche quelli difficili).
+# Legge results_clean.csv (set con outlier rimossi; coerente con montecarlo_distortion.py).
 # Produce 4 figure (PDF+SVG, sovrascrive): mc_dist, mc_sigma_sweep, mc_contrib, mc_exceed.
 #   install.packages(c("ggplot2","svglite"))
 # UNITA' scale-free: tutti gli errori sono relativi (%).

@@ -1,0 +1,86 @@
+/* ============================================================================
+   Screen-specific rules. Everything here belongs to exactly one step of the
+   workflow; shared widgets live in components.css.
+   ========================================================================== */
+
+/* -- step 1: load an image ------------------------------------------------- */
+#p0wrap{
+  flex:1;min-height:0;
+  display:none;align-items:center;justify-content:center;
+  padding:36px;overflow:auto;
+}
+#p0col{display:flex;flex-direction:column;align-items:center}
+#p0col>*+*{margin-top:22px}
+
+/* One card, not two: it takes a drop and it opens the file dialog when
+   clicked. The side panel's "Open image" button is the only other way in. */
+.dz{
+  width:440px;height:152px;
+  background:var(--card);border-radius:var(--r-lg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text-dim);
+  transition:background .14s,color .14s;
+}
+.dz:hover{background:var(--card-hi);color:var(--text)}
+/* Dragging over it: the card goes gold. No dashed outline. */
+.dz.dzover{background:var(--card-sel);color:var(--accent)}
+.dz svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.5;
+        stroke-linecap:round;stroke-linejoin:round;opacity:.65;margin-bottom:13px}
+.dz:hover svg,.dz.dzover svg{opacity:1}
+.dz-lbl{font-size:14px;font-weight:600;text-align:center;line-height:1.5;margin-bottom:6px}
+.dz-sub{font-size:var(--fs-sm);color:var(--text-faint)}
+
+.statgrid{display:flex;flex-wrap:wrap;justify-content:center;width:440px}
+.statgrid .scard{
+  background:var(--card);border-radius:var(--r-md);
+  padding:10px 12px;width:208px;margin:6px;
+}
+.statgrid .scard.full{width:calc(100% - 12px)}
+.sc-l{font-size:var(--fs-xs);color:var(--text-faint);margin-bottom:5px;
+      text-transform:uppercase;letter-spacing:.7px;font-weight:600}
+.sc-v{font-size:19px;font-weight:500;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
+.sc-v.sm{font-size:var(--fs-lg);font-weight:600}
+.sc-s{font-size:var(--fs-sm);color:var(--text-dim);margin-top:4px}
+
+/* -- step 6: the two 3D viewers -------------------------------------------- */
+/* Each viewer is one filled card, a shade lighter than the window, so the two
+   are told apart from each other and from the background by their fill alone
+   (no outline, his rule). The WebGL canvas is transparent and shows the fill. */
+#p5wrap{flex:1;min-height:0;display:none;padding:10px}
+#p5wrap>*+*{margin-left:10px}
+.vcard{
+  flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--stage);border-radius:var(--r-lg);
+}
+.vlbl{
+  font-size:var(--fs-xs);font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+  padding:9px 12px 0;flex-shrink:0;
+}
+.vlbl.g{color:var(--c-gt)}
+.vlbl.r{color:var(--c-auto)}
+.vimg{
+  flex:1;min-height:0;position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+.vwait{font-size:var(--fs);color:var(--text-faint);text-align:center;padding:0 16px}
+.v3d{display:block;width:100%;height:100%;cursor:grab}
+.v3d:active{cursor:grabbing}
+.v3dhint{
+  position:absolute;bottom:7px;left:50%;transform:translateX(-50%);
+  font-size:var(--fs-sm);color:var(--text-faint);background:var(--panel2);
+  border-radius:var(--r-xs);
+  padding:2px 9px;pointer-events:none;letter-spacing:.2px;
+}
+/* The 3D panel carries a lot of controls: tighten it so it never scrolls. */
+#rp5 .rp-scroll{overflow:hidden}
+#rp5 .sec-lbl{padding:7px 0 2px}
+#rp5 .slrow{padding:2px 0}
+#rp5 .pi-row{padding:3px 8px}
+
+/* -- developer HUD (F9) ---------------------------------------------------- */
+#perfhud{
+  display:none;position:fixed;top:54px;right:calc(var(--rp-w) + 12px);z-index:10000;
+  background:#101013F7;border-radius:var(--r-md);
+  padding:9px 12px;font:11px/1.55 var(--mono);color:var(--text-soft);
+  white-space:pre;pointer-events:none;
+}
