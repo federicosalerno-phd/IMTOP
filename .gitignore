@@ -1,8 +1,8 @@
-# ── Model weights (heavy; download separately — see README) ─────────────────
+# ── Model weights (heavy; download separately, see README) ─────────────────
 *.pth
 sam_vit_b.pth
 
-# ── Clinical image data — NOT for public release ────────────────────────────
+# ── Clinical image data, NOT for public release ────────────────────────────
 Wound Image Dataset/
 Wound Image Dataset_masks/
 Wound Image Dataset_renamed/
