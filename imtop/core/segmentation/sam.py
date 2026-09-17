@@ -37,6 +37,12 @@ MIN_VALID_CHECKPOINT = 300_000_000   # bytes; anything smaller is a broken downl
 MIN_FREE_VRAM = 2_200_000_000
 
 
+# Left to the rest of the system when the card is capped below. Windows itself,
+# the web view's compositor and whatever else is on screen keep asking the card
+# for memory while a segmentation runs.
+VRAM_HEADROOM = 250_000_000
+
+
 def _card_free_bytes() -> int | None:
     """Free video memory, or None when there is no card to ask."""
     try:
@@ -48,6 +54,34 @@ def _card_free_bytes() -> int | None:
         return int(free)
     except Exception:
         return None
+
+
+def _cap_card() -> None:
+    """Refuse to allocate past what is free on the card, instead of overcommitting.
+
+    This is the difference between an error and a frozen window. When a CUDA
+    allocation does not fit, Windows does not fail it: the display driver starts
+    paging video memory out to system RAM and the allocation eventually returns,
+    minutes later. All of that happens inside one torch call, with Python's lock
+    held, so the GUI thread cannot run a single timer and the app stops repainting
+    even though it is still answering the window manager. Capping the process at
+    what the card really has free turns the same situation into an
+    ``OutOfMemoryError``, which ``retry_on_cpu`` answers by moving to the
+    processor in a few seconds.
+    """
+    try:
+        import torch
+
+        free, total = torch.cuda.mem_get_info()
+        # What this process may hold in total: what it already holds, plus what
+        # the card still has, less the margin. Counting only the free memory
+        # would put the ceiling under the model that is already loaded and make
+        # the very next allocation fail for no reason.
+        held = torch.cuda.memory_reserved()
+        frac = (held + free - VRAM_HEADROOM) / float(total)
+        torch.cuda.set_per_process_memory_fraction(min(0.95, max(0.10, frac)))
+    except Exception:
+        pass
 
 
 def _is_out_of_memory(exc: BaseException) -> bool:
@@ -136,6 +170,7 @@ class SamEngine:
             import torch
 
             torch.cuda.empty_cache()
+            torch.cuda.set_per_process_memory_fraction(1.0)   # the cap was ours, let it go
         except Exception:
             pass
         progress(_BUILD, reason)
@@ -148,20 +183,19 @@ class SamEngine:
         operator has open; the encode that runs a minute later is the allocation
         that matters. ``IMTOP_SAM_DEVICE`` overrules this either way.
         """
-        if sam_device_forced() or self.device != "cuda":
+        if sam_device_forced() == "cpu" or self.device != "cuda":
             return
         free = _card_free_bytes()
-        if free is None or free >= MIN_FREE_VRAM:
+        if free is not None and free < MIN_FREE_VRAM and sam_device_forced() != "cuda":
+            self._move_to_cpu(
+                f"Only {free / 1e9:.1f} GB free on the card, using the processor…", progress)
             return
-        self._move_to_cpu(
-            f"Only {free / 1e9:.1f} GB free on the card, using the processor…", progress)
+        _cap_card()
 
     def _prepare(self, image: np.ndarray, image_id: int, progress: Progress) -> None:
-        # Only when there is really something to allocate: a run that finds the
-        # model loaded and this image already encoded must not throw a working
-        # GPU model away because the card happens to be busy this second.
-        if self._predictor is None or self._encoded_id != image_id:
-            self._check_room(progress)
+        # The room check is cheap, and the card fills up between one run and the
+        # next: the compositor grows, and so does whatever else is on screen.
+        self._check_room(progress)
         if self._predictor is None:
             path = self.ensure_checkpoint(progress)
             model = self._build(path, progress)
