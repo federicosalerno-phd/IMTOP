@@ -1,8 +1,12 @@
-# Release: push a tag "vX.Y.Z" and this job attaches IMTOP-vX.Y.Z.zip to a
-# GitHub Release. The zip is `git archive` of that tag, so it contains exactly
-# the tracked files: the app, the installer, the tools and the R scripts. The
-# clinical images, the SAM checkpoint and dev/ are git-ignored and therefore
-# never in it. .github and .gitattributes are export-ignored.
+# Release: push a tag "vX.Y.Z" and this job attaches IMTOP-Setup.zip to a
+# GitHub Release. The file name carries no version on purpose, so that
+#   https://github.com/<owner>/IMTOP/releases/latest/download/IMTOP-Setup.zip
+# is a permanent one-click download that always gives the newest release; the
+# README's button points at it. The version is in the release title, in the tag
+# and in the folder inside the zip. The zip is `git archive` of that tag, so it
+# contains exactly the tracked files: the app, the installer, the tools and the
+# R scripts. The clinical images, the SAM checkpoint and dev/ are git-ignored
+# and therefore never in it. .github and .gitattributes are export-ignored.
 #
 #   git tag v2.0.0
 #   git push origin v2.0.0
@@ -36,9 +40,9 @@ jobs:
 
       - name: Build the zip
         run: |
-          name="IMTOP-${GITHUB_REF_NAME}"
-          git archive --format=zip --prefix="$name/" -o "$name.zip" HEAD
-          echo "ZIP=$name.zip" >> "$GITHUB_ENV"
+          # The folder inside the zip carries the version, the file name does not.
+          git archive --format=zip --prefix="IMTOP-${GITHUB_REF_NAME}/" -o IMTOP-Setup.zip HEAD
+          echo "ZIP=IMTOP-Setup.zip" >> "$GITHUB_ENV"
 
       - name: Check what went in
         run: |
@@ -58,5 +62,14 @@ jobs:
           files: ${{ env.ZIP }}
           generate_release_notes: true
           body: |
-            **Install on Windows:** download `${{ env.ZIP }}`, extract it, double-click `install.cmd`.
+            ## [Download IMTOP for Windows](https://github.com/${{ github.repository }}/releases/latest/download/IMTOP-Setup.zip)
+
+            **Three steps, about three minutes.**
+
+            1. Click the link above. `IMTOP-Setup.zip` goes to your Downloads folder.
+            2. Right-click it, choose **Extract All**, and open the folder that appears.
+            3. Inside it, double-click **`install.cmd`**, then press **Install**.
+
             No prerequisites: the installer finds or installs Python 3.11, builds a private environment and puts IMTOP on the Desktop and in the Start Menu.
+
+            If Windows says "Windows protected your PC", click **More info**, then **Run anyway**. Run `install.cmd` from the extracted folder, not from inside the zip window.

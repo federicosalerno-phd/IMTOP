@@ -1,6 +1,32 @@
 # IMTOP wound annotator
 
-[![Paper](https://img.shields.io/badge/Paper-PDF-b31b1b.svg)](IMTOP_paper.pdf)
+<a href="https://github.com/federicosalerno-phd/IMTOP/releases/latest/download/IMTOP-Setup.zip"><img alt="Download IMTOP for Windows" src="https://img.shields.io/badge/Download-IMTOP%20for%20Windows-F5C542?style=for-the-badge&logo=windows&logoColor=0D0D0F&labelColor=0D0D0F"></a>
+&nbsp;
+<a href="IMTOP_paper.pdf"><img alt="Paper" src="https://img.shields.io/badge/Paper-PDF-b31b1b?style=for-the-badge"></a>
+
+**Three steps, about three minutes.**
+
+1. Click the yellow button above, or [this link](https://github.com/federicosalerno-phd/IMTOP/releases/latest/download/IMTOP-Setup.zip). A file called
+   `IMTOP-Setup.zip` goes to your Downloads folder.
+2. Right-click it, choose **Extract All**, and open the folder that appears.
+3. Inside it, double-click **`install.cmd`**, then press **Install**.
+
+That is all. No Python to set up, no packages to install by hand, no admin
+rights. When it finishes, press **Launch IMTOP**; from then on IMTOP is on the
+Desktop and in the Start Menu like any other program.
+
+> **If Windows says "Windows protected your PC"**, click **More info**, then
+> **Run anyway**. It says that about every program that is not signed by a paid
+> certificate, this one included.
+>
+> **`install.cmd` has to be run from the extracted folder**, not from inside the
+> zip window. If you double-click it there it will tell you so and stop.
+>
+> **Do not extract into a OneDrive folder.** The private environment the
+> installer builds is thousands of small files and OneDrive will try to upload
+> every one of them. `C:\IMTOP` or `Documents\IMTOP` is fine.
+
+---
 
 A Windows desktop tool that **calibrates, segments and measures a wound from a
 single photograph**, previews and exports a printable 3D patch, and writes a
@@ -10,22 +36,9 @@ wound dressings*) [paper](IMTOP_paper.pdf).
 Segmentation back-ends: **Segment Anything (SAM, ViT-B)**, **GrabCut** and
 **Watershed**, plus a manual trace you can edit point by point.
 
-## Install (Windows 10 / 11)
+## What the installer does
 
-1. Download the latest `IMTOP-vX.Y.Z.zip` from the
-   [Releases page](https://github.com/federicosalerno-phd/IMTOP/releases).
-2. Extract it to a normal folder, for example `C:\IMTOP` or `Documents\IMTOP`.
-   Avoid a OneDrive-synced folder: the private environment the installer
-   builds is thousands of small files, and OneDrive tries to upload every one.
-3. Double-click **`install.cmd`**.
-   If Windows shows "Windows protected your PC", click *More info*, then
-   *Run anyway*: the installer is a plain script, not a signed binary.
-4. Press **Install**, wait, press **Launch IMTOP**.
-
-Nothing else is needed: no Python to set up, no packages to install by hand,
-no admin rights. IMTOP appears on the Desktop and in the Start Menu.
-
-What the installer does, in order:
+In order:
 
 - finds a 64-bit **Python 3.11** on the PC, or installs one for the current
   user (with `winget`, or with the python.org installer if `winget` is missing);
