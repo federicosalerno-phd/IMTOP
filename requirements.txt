@@ -35,7 +35,7 @@ PyQt6-WebEngine==6.11.0
 # The shell extra is left off on purpose: PyQt6 and the WebEngine are pinned
 # above, at the versions this application is tested on, and the extra would
 # ask for them a second time with a looser bound.
-slantui==0.2.0
+slantui==0.3.0
 
 # --- Segment Anything (SAM, ViT-B) back-end ---
 torch==2.6.0
