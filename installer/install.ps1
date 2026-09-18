@@ -407,27 +407,47 @@ try {
     $py = Find-Python311 $Cfg.PyMajorMinor
     if (-not $py) {
         Say "Python 3.11 is not on this PC. Installing it for this user."
+        # Each attempt is allowed to fail on its own. A dropped connection inside
+        # the download used to travel all the way out of the step, so the person
+        # was left looking at "the connection dropped" instead of at the sentence
+        # further down that says what to do about it.
+        $why = ''
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Say "Installing Python 3.11 with winget"
-            $S.Frac = 0.1
-            $code = Run 'winget' @('install', '--id', $Cfg.WingetId, '--exact', '--scope', 'user', '--silent',
-                                   '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
-            Log ("winget exit " + $code)
-            $py = Find-Python311 $Cfg.PyMajorMinor
+            try {
+                Say "Installing Python 3.11 with winget"
+                $S.Frac = 0.1
+                $code = Run 'winget' @('install', '--id', $Cfg.WingetId, '--exact', '--scope', 'user', '--silent',
+                                       '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
+                Log ("winget exit " + $code)
+                $py = Find-Python311 $Cfg.PyMajorMinor
+            } catch {
+                $why = "$($_.Exception.Message)"
+                Log ("winget could not do it: " + $why)
+            }
+        } else {
+            Log "winget is not on this PC, going straight to python.org"
         }
         if (-not $py) {
-            Say ("Downloading Python " + $Cfg.PyFullVersion + " from python.org (25 MB)")
-            $exe = Join-Path $env:TEMP ("python-" + $Cfg.PyFullVersion + "-amd64.exe")
-            Download $Cfg.PyExeUrl $exe $Cfg.PyExeBytes
-            Say "Installing Python quietly (this user only, no admin rights)"
-            $p = Start-Process -FilePath $exe -PassThru -Wait -ArgumentList @('/quiet', 'InstallAllUsers=0', 'PrependPath=0',
-                    'Include_launcher=1', 'InstallLauncherAllUsers=0', 'Include_test=0', 'Include_doc=0', 'Include_tcltk=0', 'Shortcuts=0')
-            Log ("python.org installer exit " + $p.ExitCode)
-            Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
-            $py = Find-Python311 $Cfg.PyMajorMinor
+            try {
+                Say ("Downloading Python " + $Cfg.PyFullVersion + " from python.org (25 MB)")
+                $exe = Join-Path $env:TEMP ("python-" + $Cfg.PyFullVersion + "-amd64.exe")
+                Download $Cfg.PyExeUrl $exe $Cfg.PyExeBytes
+                Say "Installing Python quietly (this user only, no admin rights)"
+                $p = Start-Process -FilePath $exe -PassThru -Wait -ArgumentList @('/quiet', 'InstallAllUsers=0', 'PrependPath=0',
+                        'Include_launcher=1', 'InstallLauncherAllUsers=0', 'Include_test=0', 'Include_doc=0', 'Include_tcltk=0', 'Shortcuts=0')
+                Log ("python.org installer exit " + $p.ExitCode)
+                Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
+                $py = Find-Python311 $Cfg.PyMajorMinor
+            } catch {
+                $why = "$($_.Exception.Message)"
+                Log ("python.org could not do it: " + $why)
+            }
         }
         if (-not $py) {
-            throw ("Python 3.11 could not be installed automatically. Install the 64-bit Python " + $Cfg.PyFullVersion +
+            $tail = ''
+            if ($why) { $tail = " The automatic attempt said: " + $why + "." }
+            throw ("Python 3.11 could not be installed automatically." + $tail +
+                   " Install the 64-bit Python " + $Cfg.PyFullVersion +
                    " from python.org (https://www.python.org/downloads/release/python-3119/), then run install.cmd again.")
         }
     }
