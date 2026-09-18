@@ -590,52 +590,15 @@ $SlantColor  = (Get-SlantPalette).Wpf            # role -> #AARRGGBB, what WPF p
 $SlantMetric = (Get-SlantTokens).MetricNumbers   # name -> the number, no unit on it
 $SlantFont   = (Get-SlantTokens).Fonts           # the three stacks, as WPF wants them
 
+# The frameless window, the messages that keep it frameless, the frame styles
+# that keep Windows animating it and the DWM attributes all used to be written
+# out here. They are the library's now, in Install-SlantWindow, which is the
+# same window the application itself opens. What is left of this is the one
+# call that has to happen before the window exists.
 try {
     Add-Type -Namespace Imtop -Name Native -MemberDefinition @'
 [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
 public static extern int SetCurrentProcessExplicitAppUserModelID(string AppID);
-[DllImport("dwmapi.dll")]
-public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
-[DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
-public static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
-[DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
-public static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-[DllImport("user32.dll")]
-public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
-[DllImport("user32.dll")]
-public static extern bool GetWindowRect(IntPtr hWnd, out RECT rc);
-[DllImport("user32.dll")]
-public static extern bool GetClientRect(IntPtr hWnd, out RECT rc);
-[DllImport("comctl32.dll")]
-public static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc proc, IntPtr id, IntPtr data);
-[DllImport("comctl32.dll")]
-public static extern IntPtr DefSubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-public delegate IntPtr SubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr data);
-[StructLayout(LayoutKind.Sequential)]
-public struct RECT { public int Left, Top, Right, Bottom; }
-static SubclassProc keep;
-// A bare WS_POPUP window is not animated by Windows when it minimises or
-// closes. Give it the frame styles, and answer WM_NCCALCSIZE with "the client
-// is the whole window" so no caption and no border are ever laid out.
-public static void Frame(IntPtr h) {
-    keep = new SubclassProc(Proc);
-    SetWindowSubclass(h, keep, (IntPtr)1, IntPtr.Zero);
-    long style = GetWindowLongPtr(h, -16).ToInt64();
-    style |= 0x00C00000L | 0x00040000L | 0x00020000L | 0x00080000L;   // caption, thickframe, minimizebox, sysmenu
-    SetWindowLongPtr(h, -16, (IntPtr)style);
-    SetWindowPos(h, IntPtr.Zero, 0, 0, 0, 0, 0x0020 | 0x0002 | 0x0001 | 0x0004 | 0x0010);
-}
-static IntPtr Proc(IntPtr h, uint msg, IntPtr w, IntPtr l, IntPtr id, IntPtr data) {
-    if (msg == 0x0083 && w != IntPtr.Zero) return IntPtr.Zero;              // WM_NCCALCSIZE
-    if (msg == 0x0086) return DefSubclassProc(h, msg, w, (IntPtr)(-1));     // WM_NCACTIVATE: no caption repaint
-    return DefSubclassProc(h, msg, w, l);
-}
-public static string Describe(IntPtr h) {
-    RECT wr, cr;
-    GetWindowRect(h, out wr); GetClientRect(h, out cr);
-    return string.Format("style=0x{0:X8} window={1}x{2} client={3}x{4}",
-        GetWindowLongPtr(h, -16).ToInt64() & 0xFFFFFFFFL, wr.Right - wr.Left, wr.Bottom - wr.Top, cr.Right - cr.Left, cr.Bottom - cr.Top);
-}
 '@
     [void][Imtop.Native]::SetCurrentProcessExplicitAppUserModelID($Aumid + ".Installer")
 } catch { }
@@ -643,8 +606,7 @@ public static string Describe(IntPtr h) {
 $xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="IMTOP Installer" Width="640" Height="450"
-        WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="False"
+        Title="IMTOP Installer" Width="640" Height="450" MinWidth="640" MinHeight="450"
         Background="{{surface-0}}" Foreground="{{text-1}}" FontFamily="{{f:font}}" FontSize="{{m:fs}}"
         WindowStartupLocation="CenterScreen" UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
@@ -723,47 +685,6 @@ $xaml = @'
       </Setter>
     </Style>
 
-    <!-- The window buttons in the thin part of the band. -->
-    <Style x:Key="WinBtn" TargetType="Button">
-      <Setter Property="Width" Value="42"/>
-      <Setter Property="Height" Value="28"/>
-      <Setter Property="Foreground" Value="{{text-3}}"/>
-      <Setter Property="Cursor" Value="Arrow"/>
-      <Setter Property="Focusable" Value="False"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="b" Background="Transparent">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="b" Property="Background" Value="{{control-hover}}"/>
-                <Setter Property="Foreground" Value="{{text-1}}"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-    <Style x:Key="WinClose" TargetType="Button" BasedOn="{StaticResource WinBtn}">
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="b" Background="Transparent">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="b" Property="Background" Value="{{err}}"/>
-                <Setter Property="Foreground" Value="{{on-status}}"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-
     <!-- A tick box that is a fill: grey at rest, gold with an ink tick when on. -->
     <Style x:Key="Tick" TargetType="CheckBox">
       <Setter Property="Foreground" Value="{{text-2}}"/>
@@ -799,37 +720,17 @@ $xaml = @'
     </Style>
   </Window.Resources>
 
+  <!-- No title bar here: Install-SlantWindow puts the band above all of this
+       and the window keeps what is inside. -->
   <Border x:Name="Root" Background="{{surface-0}}">
     <Grid>
       <Grid.RowDefinitions>
-        <RowDefinition Height="44"/>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
-      <!-- Title bar: one band the whole width, thick under the name, a straight
-           taper, thin under the buttons. The shape is a Path filled at run time
-           from the real width of the name (Set-BandShape). -->
-      <Grid x:Name="TitleBar" Grid.Row="0" Background="{{surface-1}}">
-        <Path x:Name="Band" Fill="{{control}}" IsHitTestVisible="False"/>
-        <StackPanel x:Name="Brand" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Stretch" Margin="0">
-          <Border x:Name="Logo" Width="22" Height="22" CornerRadius="{{m:r}}" Margin="14,0,11,0" VerticalAlignment="Center" Background="{{accent}}"/>
-          <TextBlock VerticalAlignment="Center" FontFamily="{{f:font-brand}}" FontSize="14.5" Foreground="{{text-2}}" Margin="0,0,16,0">
-            <Run Text="IMTOP" FontWeight="SemiBold" Foreground="{{text-1}}"/><Run Text="  Installer"/>
-          </TextBlock>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-          <Button x:Name="BtnMin" Style="{StaticResource WinBtn}" ToolTip="Minimise">
-            <Path Data="M2,6 L10,6" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="12" Height="12"/>
-          </Button>
-          <Button x:Name="BtnClose" Style="{StaticResource WinClose}" ToolTip="Close">
-            <Path Data="M3,3 L9,9 M9,3 L3,9" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="12" Height="12"/>
-          </Button>
-        </StackPanel>
-      </Grid>
-
       <!-- Content -->
-      <Grid Grid.Row="1" Margin="24,20,24,16">
+      <Grid Grid.Row="0" Margin="24,20,24,16">
 
         <!-- Ready -->
         <StackPanel x:Name="ViewReady">
@@ -892,7 +793,7 @@ $xaml = @'
       </Grid>
 
       <!-- Footer: a filled band, the actions on the right -->
-      <Grid Grid.Row="2" Background="{{surface-1}}" Height="58">
+      <Grid Grid.Row="1" Background="{{surface-1}}" Height="58">
         <TextBlock x:Name="FootLeft" Foreground="{{text-4}}" FontSize="{{m:fs-sm}}" FontFamily="{{f:mono}}" VerticalAlignment="Center" Margin="24,0,0,0"/>
         <StackPanel x:Name="FootBtns" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,24,0"/>
       </Grid>
@@ -929,7 +830,7 @@ $xaml = [regex]::Replace($xaml, '\{\{([a-z]:)?([a-z0-9-]+)\}\}', {
 
 $w = [System.Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader ([xml]$xaml)))
 $el = @{}
-foreach ($name in 'Root', 'TitleBar', 'Band', 'Brand', 'Logo', 'BtnMin', 'BtnClose', 'ViewReady', 'ReadyPath', 'ReadyList', 'ChkCuda', 'ChkCudaText', 'ReadyNote',
+foreach ($name in 'Root', 'ViewReady', 'ReadyPath', 'ReadyList', 'ChkCuda', 'ChkCudaText', 'ReadyNote',
                   'ViewWork', 'Steps', 'WorkTitle', 'WorkPct', 'BarTrack', 'BarFill', 'WorkDetail', 'WorkQuip',
                   'ViewDone', 'DoneText', 'DoneList', 'DoneQuip', 'ViewError', 'ErrorText', 'ErrorHint', 'FootLeft', 'FootBtns') {
     $el[$name] = $w.FindName($name)
@@ -942,50 +843,17 @@ function New-Brush([string]$hex) { return New-SlantBrush $hex }
 if (Test-Path -LiteralPath $IconPath) {
     try { $w.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object Uri($IconPath)), 'None', 'OnLoad') } catch { }
 }
-if (Test-Path -LiteralPath $LogoPath) {
-    try {
-        $img = New-Object System.Windows.Media.ImageBrush
-        $img.ImageSource = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object Uri($LogoPath)), 'None', 'OnLoad')
-        $img.Stretch = 'UniformToFill'
-        $el.Logo.Background = $img
-    } catch { }
-}
-
-$w.add_SourceInitialized({
-    # The same dressing as the app's window (imtop/app.py): a real Win32 frame
-    # behind the frameless window, so minimise and close animate; rounded
-    # corners, which a frameless window has to ask for; and no DWM border,
-    # because nothing in this family of windows draws an outline.
-    try {
-        $h = (New-Object System.Windows.Interop.WindowInteropHelper($w)).Handle
-        try { [Imtop.Native]::Frame($h) } catch { }
-        $round = 2
-        [void][Imtop.Native]::DwmSetWindowAttribute($h, 33, [ref]$round, 4)
-        $dark = 1
-        [void][Imtop.Native]::DwmSetWindowAttribute($h, 20, [ref]$dark, 4)
-        $noBorder = -2
-        [void][Imtop.Native]::DwmSetWindowAttribute($h, 34, [ref]$noBorder, 4)
-    } catch { }
-})
-
-# The band. Its profile used to be written out here, a second copy of the maths
-# in SlantUI's js/titlebar.js, kept in step by hand. It is one call now, and the
-# path it returns is the same string the page puts in its clip-path, character
-# for character: tests/test_wpf.py in the library runs both and compares them.
-function Set-BandShape {
-    $W = $el.TitleBar.ActualWidth
-    if ($W -le 0) { return }
-    $el.Band.Data = Get-SlantBandGeometry -Width $W -BrandWidth ([math]::Round($el.Brand.ActualWidth))
-}
-$el.TitleBar.add_SizeChanged({ try { Set-BandShape } catch { } })
-$w.add_ContentRendered({ try { Set-BandShape } catch { } })
-
-$el.TitleBar.add_MouseLeftButtonDown({
-    param($src, $e)
-    try { if ($e.ButtonState -eq 'Pressed') { $w.DragMove() } } catch { }
-})
-$el.BtnMin.add_Click({ $w.WindowState = 'Minimized' })
-$el.BtnClose.add_Click({ $w.Close() })
+# The window itself. The band across the top, the name on the left, the credit
+# line the licence asks for, the buttons, the drag, the frame styles behind a
+# frameless window and the messages that keep it frameless were all written out
+# here, in about a hundred and fifty lines, and they are the library's now.
+# This installer was written before there was one to borrow.
+#
+# It gains resizing on the way, which it never had, and it is still never
+# smaller than the size it was drawn at. No maximise: an installer that fills
+# the screen is an installer nobody asked for.
+$chrome = Install-SlantWindow -Window $w -Bold 'IMTOP' -Name '  Installer' `
+    -Logo $LogoPath -NoMaximize
 
 # -- state ------------------------------------------------------------------
 $S = [hashtable]::Synchronized(@{
@@ -1133,9 +1001,12 @@ function Save-Shot([string]$name) {
     if (-not $ShotsDir) { return }
     try {
         $w.UpdateLayout()
-        $root = $el.Root
-        $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap([int]$root.ActualWidth, [int]$root.ActualHeight, 96, 96, [System.Windows.Media.PixelFormats]::Pbgra32)
-        $rtb.Render($root)
+        # The window and not the root inside it: the band is part of the look
+        # now, and a visual is rendered with the offset it has in its parent,
+        # so shooting the root alone gave an empty strip where the band is and
+        # cut the footer off the bottom.
+        $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap([int]$w.ActualWidth, [int]$w.ActualHeight, 96, 96, [System.Windows.Media.PixelFormats]::Pbgra32)
+        $rtb.Render($w)
         $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder
         $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($rtb))
         $fs = [System.IO.File]::Open((Join-Path $ShotsDir "$name.png"), 'Create')
@@ -1318,7 +1189,12 @@ if ($SmokeTest) {
                     $smokeTimer.Stop()
                     # Write-Output inside a WPF event handler goes nowhere; the console does.
                     [Console]::Out.WriteLine("shots=" + $ShotsDir)
-                    try { [Console]::Out.WriteLine("frame " + [Imtop.Native]::Describe((New-Object System.Windows.Interop.WindowInteropHelper($w)).Handle)) } catch { }
+                    try { [Console]::Out.WriteLine("frame " + (Get-SlantWindowSizes $chrome.Handle)) } catch { }
+                    try {
+                        $bordi = @([SlantUI.Chrome]::Hit($chrome.Handle, [int]$w.Left + 1, [int]$w.Top + 1),
+                                   [SlantUI.Chrome]::Hit($chrome.Handle, [int]$w.Left + 300, [int]$w.Top + 20))
+                        [Console]::Out.WriteLine("band [$($chrome.Credit.Text)] brand=$([math]::Round($chrome.Brand.ActualWidth)) buttons=$(($chrome.Buttons.Keys | Sort-Object) -join ',') edges=$($bordi -join ',')")
+                    } catch { }
                     $w.Close()
                 }
             }
