@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 424" width="900" height="424" role="img"
+     aria-label="The IMTOP pipeline. Acquisition: 1 image, 2 calibration. Segmentation and analysis: 3 manual outline, 4 automatic segmentation, 5 metrics. Output: 6 3D patch, exported as STL, PDF report, JSON metrics and PNG mask.">
+  <title>The IMTOP pipeline, from one photograph to a printable patch</title>
+
+  <style>
+    .t   { font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .h1  { font-size: 18px; font-weight: 600; fill: #E6E6EC; }
+    .sub { font-size: 11.5px; fill: #8A8A94; }
+    .cap { font-size: 10px; font-weight: 600; fill: #C9A033; letter-spacing: 1.4px; }
+    .st  { font-size: 13.5px; font-weight: 600; fill: #E6E6EC; }
+    .de  { font-size: 11px; fill: #8A8A94; }
+    .fo  { font-size: 10.5px; fill: #6E6E78; }
+    .num { font-size: 10.5px; font-weight: 700; fill: #0D0D0F; }
+    .ex  { font-size: 11px; font-weight: 600; fill: #E6E6EC; }
+    .exd { font-size: 11px; font-weight: 400; fill: #8A8A94; }
+  </style>
+
+  <rect width="900" height="424" rx="14" fill="#0D0D0F"/>
+
+  <!-- header -->
+  <rect x="28" y="26" width="38" height="3" rx="1.5" fill="#F5C542"/>
+  <text class="t h1" x="28" y="60">From one photograph to a printable patch</text>
+  <text class="t sub" x="28" y="82">Six steps, and each one hands its result to the next.</text>
+  <text class="t sub" x="872" y="82" text-anchor="end" fill="#4E4E57">IMTOP · IMage-TO-Print wound dressings</text>
+
+  <!-- ── acquisition ──────────────────────────────────────────────────── -->
+  <rect x="28" y="104" width="258" height="292" rx="12" fill="#16161B" stroke="#26262B"/>
+  <text class="t cap" x="46" y="132">ACQUISITION</text>
+  <rect x="46" y="144" width="222" height="1" fill="#26262B"/>
+
+  <circle cx="58" cy="184" r="11" fill="#F5C542"/>
+  <text class="t num" x="58" y="187.5" text-anchor="middle">1</text>
+  <text class="t st" x="78" y="188">Image</text>
+  <text class="t de" x="78" y="208">A photograph. Any camera.</text>
+
+  <circle cx="58" cy="254" r="11" fill="#F5C542"/>
+  <text class="t num" x="58" y="257.5" text-anchor="middle">2</text>
+  <text class="t st" x="78" y="258">Calibration</text>
+  <text class="t de" x="78" y="278">Two points, a known length:</text>
+  <text class="t de" x="78" y="294">the photo now has a scale.</text>
+
+  <rect x="46" y="340" width="222" height="38" rx="9" fill="#121216"/>
+  <text class="t fo" x="60" y="357">No depth sensor, no second view.</text>
+  <text class="t fo" x="60" y="371">The reference is in the photo.</text>
+
+  <path d="M292 250 h16" stroke="#C9A033" stroke-width="1.8"/>
+  <path d="M308 245 l8 5 l-8 5 z" fill="#C9A033"/>
+
+  <!-- ── segmentation and analysis ────────────────────────────────────── -->
+  <rect x="322" y="104" width="280" height="292" rx="12" fill="#16161B" stroke="#26262B"/>
+  <text class="t cap" x="340" y="132">SEGMENTATION AND ANALYSIS</text>
+  <rect x="340" y="144" width="244" height="1" fill="#26262B"/>
+
+  <circle cx="352" cy="184" r="11" fill="#F5C542"/>
+  <text class="t num" x="352" y="187.5" text-anchor="middle">3</text>
+  <text class="t st" x="372" y="188">Manual outline</text>
+  <text class="t de" x="372" y="208">Control points, and every one</text>
+  <text class="t de" x="372" y="224">of them stays editable.</text>
+
+  <circle cx="352" cy="264" r="11" fill="#F5C542"/>
+  <text class="t num" x="352" y="267.5" text-anchor="middle">4</text>
+  <text class="t st" x="372" y="268">Automatic segmentation</text>
+  <text class="t de" x="372" y="288">SAM (ViT-B), GrabCut or</text>
+  <text class="t de" x="372" y="304">Watershed, on the same photo.</text>
+
+  <circle cx="352" cy="340" r="11" fill="#F5C542"/>
+  <text class="t num" x="352" y="343.5" text-anchor="middle">5</text>
+  <text class="t st" x="372" y="344">Metrics</text>
+  <text class="t de" x="372" y="364">22 measures, the hand trace</text>
+  <text class="t de" x="372" y="380">against the machine one.</text>
+
+  <path d="M608 250 h16" stroke="#C9A033" stroke-width="1.8"/>
+  <path d="M624 245 l8 5 l-8 5 z" fill="#C9A033"/>
+
+  <!-- ── output ───────────────────────────────────────────────────────── -->
+  <rect x="638" y="104" width="234" height="292" rx="12" fill="#16161B" stroke="#26262B"/>
+  <text class="t cap" x="656" y="132">OUTPUT</text>
+  <rect x="656" y="144" width="198" height="1" fill="#26262B"/>
+
+  <circle cx="668" cy="184" r="11" fill="#F5C542"/>
+  <text class="t num" x="668" y="187.5" text-anchor="middle">6</text>
+  <text class="t st" x="688" y="188">3D patch</text>
+  <text class="t de" x="688" y="208">Offset, extrude, finish the</text>
+  <text class="t de" x="688" y="224">edge: a watertight mesh.</text>
+
+  <text class="t cap" x="656" y="272">EXPORTS</text>
+  <rect x="656" y="284" width="198" height="1" fill="#26262B"/>
+
+  <circle cx="662" cy="306" r="3" fill="#F5C542"/>
+  <text class="t" x="676" y="310"><tspan class="ex">patch.stl</tspan><tspan class="exd" dx="7">printable mesh</tspan></text>
+  <circle cx="662" cy="330" r="3" fill="#F5C542"/>
+  <text class="t" x="676" y="334"><tspan class="ex">report.pdf</tspan><tspan class="exd" dx="7">or .html</tspan></text>
+  <circle cx="662" cy="354" r="3" fill="#F5C542"/>
+  <text class="t" x="676" y="358"><tspan class="ex">metrics.json</tspan><tspan class="exd" dx="7">22 numbers</tspan></text>
+  <circle cx="662" cy="378" r="3" fill="#F5C542"/>
+  <text class="t" x="676" y="382"><tspan class="ex">mask.png</tspan><tspan class="exd" dx="7">the hand trace</tspan></text>
+</svg>

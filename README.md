@@ -36,6 +36,8 @@ wound dressings*) [paper](IMTOP_paper.pdf).
 Segmentation back-ends: **Segment Anything (SAM, ViT-B)**, **GrabCut** and
 **Watershed**, plus a manual trace you can edit point by point.
 
+![The IMTOP pipeline: acquisition (image, calibration), segmentation and analysis (manual outline, automatic segmentation, metrics), output (3D patch, STL, PDF report, JSON metrics, PNG mask)](docs/images/pipeline.svg)
+
 ## What the installer does
 
 In order:
@@ -90,21 +92,55 @@ tick on a tab means that step's work was done, not that the step was visited.
    the command line.
 2. **Calibration**: click the two ends of a reference of known length to set
    the scale in px/mm, or skip it and work in pixels.
+
+   ![The calibration step: two crosshairs on a reference, the length typed in the panel, and the scale it sets](docs/images/step-2-calibration.jpg)
+
+   *Here the span stands for 30 mm, which puts this photograph at 10 px/mm.
+   In use the two points go on a ruler, on a caliper opening, or on any marker
+   whose size you know. Everything measured afterwards is in millimetres
+   because of these two clicks.*
+
 3. **Manual segmentation**: trace the wound with control points (spline
    preview, undo/redo). **Draft outline (SAM)** asks the model for a first
    outline instead of tracing it by hand. It needs a wound that clearly stands
    out from the skin, it can fail, and what it gives back is a machine outline:
    check it, drag the points, then run the comparison again from this step.
+
+   ![The manual segmentation step: eighteen control points around the wound and the closed spline through them](docs/images/step-3-manual-outline.jpg)
+
+   *Eighteen points, a closed spline through them, and each one still
+   draggable. This trace is the reference the rest of the run is measured
+   against.*
+
 4. **Auto segmentation**: run SAM, GrabCut or Watershed; the result is drawn
    over your trace.
+
+   ![The automatic segmentation step: SAM's outline in red over the hand trace in green, with the method list on the right](docs/images/step-4-auto-segmentation.jpg)
+
+   *Green is the hand trace, red is what SAM returned on the same photograph.
+   The disagreement you can see here is what the next step puts numbers on.*
+
 5. **Metrics**: 22 measures in two columns: overlap (Dice, IoU, uncovered
    and excess area, the coverage cost index), areas and their relative error,
    distances (Hausdorff, average surface distance), perimeters, compactness,
    bounding boxes and aspect ratios, in mm and mm² when calibrated and in
    pixels otherwise. Clicking a row draws that measure on the photo. Export the
    metrics as JSON, the trace as a ground-truth mask (PNG), or a **report**.
+
+   ![The metrics step: 22 numbers in the panel, with the uncovered wound area drawn on the photograph](docs/images/step-5-metrics.jpg)
+
+   *The row clicked here is **Uncovered**, so that is what is drawn on the
+   photo: the 466 mm² of wound a patch cut on SAM's outline would leave open.
+   This run scores Dice 0.801, on a wound of 44.9 by 39.9 mm.*
+
 6. **3D patch**: preview the extruded patch for both contours and export an
    STL.
+
+   ![The 3D patch step: the two patches side by side with their area, perimeter and volume](docs/images/step-6-3d-patch.jpg)
+
+   *Both contours become a solid, so the disagreement of the step before turns
+   into a volume: 4100 mm³ against 2722 mm³, at 3 mm thick. Thickness, edge and
+   offset are yours to set; **Export STL** writes the one you pick.*
 
 The **report** is a PDF (A4, printed by the app itself, no internet needed):
 the summary cards, the facts of the run, the photo and the overlay, a short
@@ -112,6 +148,14 @@ guide to reading the numbers, the 22 metrics with a one-line meaning each, one
 figure per metric showing what it was measured on, and the 3D patch parameters.
 Type an `.html` name in the save dialog to get the same document as a
 self-contained web page instead.
+
+![Two pages of the report: the summary and the facts of the run on the left, the figure drawn for every metric on the right](docs/images/report.jpg)
+
+The wound in these pictures comes from the Lower Limb and Feet Wound Image
+Dataset (Islam, M.M., Mendeley Data V3, doi
+[10.17632/hsj38fwnvr.3](https://doi.org/10.17632/hsj38fwnvr.3), CC BY);
+`case_015.png` is this project's name for it. The numbers in the captions are
+the ones the app produced on that run.
 
 `Ctrl` + mouse wheel zooms the photo, centred on the cursor. Whole-page zoom is
 disabled by design.
@@ -179,6 +223,7 @@ tools/batch_run.py        reproducibility: Experiment A, headless, on imtop.core
 tools/montecarlo_distortion.py   reproducibility: Monte Carlo error budget of the patch
 tools/requirements-analysis.txt  pandas + matplotlib, for the script above
 Graphs/                   R scripts and CSVs behind the paper figures (rendered outputs are git-ignored)
+docs/images/              the pipeline diagram and the screenshots this README shows
 .github/workflows/release.yml    tag vX.Y.Z -> zip -> GitHub Release
 ```
 

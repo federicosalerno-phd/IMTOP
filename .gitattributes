@@ -10,6 +10,7 @@
 
 # Binaries, never normalised
 *.png binary
+*.jpg binary
 *.ico binary
 *.pth binary
 
