@@ -1,9 +1,19 @@
 /* ============================================================================
-   Screen-specific rules. Everything here belongs to exactly one step of the
-   workflow; shared widgets live in components.css.
+   Everything IMTOP adds to SlantUI.
+
+   Two kinds of rule are in here and nothing else: what belongs to exactly one
+   step of the workflow, and the handful of places where this application's
+   navigation shows in the shell. Shared widgets are SlantUI's; if something
+   here starts looking like a widget the next application would want too, it
+   belongs in the library instead.
+
+   Colours are roles (var(--text-3), var(--surface-3)), never hex values, so
+   this file is as correct on a light palette as on the dark one.
    ========================================================================== */
 
 /* -- step 1: load an image ------------------------------------------------- */
+/* The card itself is SlantUI's .dz, at the size it ships with. What is here
+   is the column it sits in and the four cards under it. */
 #p0wrap{
   flex:1;min-height:0;
   display:none;align-items:center;justify-content:center;
@@ -12,35 +22,48 @@
 #p0col{display:flex;flex-direction:column;align-items:center}
 #p0col>*+*{margin-top:22px}
 
-/* One card, not two: it takes a drop and it opens the file dialog when
-   clicked. The side panel's "Open image" button is the only other way in. */
-.dz{
-  width:440px;height:152px;
-  background:var(--card);border-radius:var(--r-lg);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  cursor:pointer;color:var(--text-dim);
-  transition:background .14s,color .14s;
-}
-.dz:hover{background:var(--card-hi);color:var(--text)}
-/* Dragging over it: the card goes gold. No dashed outline. */
-.dz.dzover{background:var(--card-sel);color:var(--accent)}
-.dz svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.5;
-        stroke-linecap:round;stroke-linejoin:round;opacity:.65;margin-bottom:13px}
-.dz:hover svg,.dz.dzover svg{opacity:1}
-.dz-lbl{font-size:14px;font-weight:600;text-align:center;line-height:1.5;margin-bottom:6px}
-.dz-sub{font-size:var(--fs-sm);color:var(--text-faint)}
-
 .statgrid{display:flex;flex-wrap:wrap;justify-content:center;width:440px}
 .statgrid .scard{
-  background:var(--card);border-radius:var(--r-md);
+  background:var(--surface-3);border-radius:var(--r-md);
   padding:10px 12px;width:208px;margin:6px;
 }
 .statgrid .scard.full{width:calc(100% - 12px)}
-.sc-l{font-size:var(--fs-xs);color:var(--text-faint);margin-bottom:5px;
+.sc-l{font-size:var(--fs-xs);color:var(--text-4);margin-bottom:5px;
       text-transform:uppercase;letter-spacing:.7px;font-weight:600}
-.sc-v{font-size:19px;font-weight:500;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
+.sc-v{font-size:19px;font-weight:500;line-height:1;color:var(--text-1);font-variant-numeric:tabular-nums}
 .sc-v.sm{font-size:var(--fs-lg);font-weight:600}
-.sc-s{font-size:var(--fs-sm);color:var(--text-dim);margin-top:4px}
+.sc-s{font-size:var(--fs-sm);color:var(--text-3);margin-top:4px}
+
+/* -- steps 2 to 5: the photo on the stage ---------------------------------- */
+/* The stage is SlantUI's. IMTOP gives it a dark margin, so the photo never
+   touches an edge of the window, and a line to show instead of the photo
+   while there is none. */
+#canvaswrap{
+  display:none;flex:1;min-height:0;flex-direction:column;
+  padding:0 var(--stage-pad) var(--stage-pad);background:var(--surface-0);
+}
+#cwrap #noimg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+
+/* The toolbar row is on every step. What a step cannot use is hidden in
+   place, so the hint and the file name never slide and the stage never
+   moves (js/nav.js go()). */
+#ctoolbar.no-view .ct,#ctoolbar.no-view .ctsep{visibility:hidden}
+#ctoolbar.no-edit #ct-undo,#ctoolbar.no-edit #ct-redo,#ctoolbar.no-edit #ct-reset{visibility:hidden}
+
+/* Below this width the four actions in the top bar keep their icons and drop
+   their labels. The number is IMTOP's own arithmetic: six step tabs at
+   --tab-w, the side panel at --rp-w, and the four buttons at their full
+   width add up to 1310px. */
+@media (max-width:1310px){
+  .tb-r .btn-label{display:none}
+  .tb-r .btn svg{margin-right:0}
+  .tb-r .btn{padding:6px 8px}
+}
+
+/* -- step 3: the note chip ------------------------------------------------- */
+/* Neither a status nor the accent: a remark about the trace, on the blue of
+   the area metrics (js/manualseg.js). */
+.chip-info{background:var(--card-info);color:var(--blue)}
 
 /* -- step 6: the two 3D viewers -------------------------------------------- */
 /* Each viewer is one filled card, a shade lighter than the window, so the two
@@ -50,7 +73,7 @@
 #p5wrap>*+*{margin-left:10px}
 .vcard{
   flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;
-  background:var(--stage);border-radius:var(--r-lg);
+  background:var(--surface-3);border-radius:var(--r-lg);
 }
 .vlbl{
   font-size:var(--fs-xs);font-weight:600;letter-spacing:.8px;text-transform:uppercase;
@@ -62,12 +85,12 @@
   flex:1;min-height:0;position:relative;
   display:flex;align-items:center;justify-content:center;
 }
-.vwait{font-size:var(--fs);color:var(--text-faint);text-align:center;padding:0 16px}
+.vwait{font-size:var(--fs);color:var(--text-3);text-align:center;padding:0 16px}
 .v3d{display:block;width:100%;height:100%;cursor:grab}
 .v3d:active{cursor:grabbing}
 .v3dhint{
   position:absolute;bottom:7px;left:50%;transform:translateX(-50%);
-  font-size:var(--fs-sm);color:var(--text-faint);background:var(--panel2);
+  font-size:var(--fs-sm);color:var(--text-4);background:var(--overlay);
   border-radius:var(--r-xs);
   padding:2px 9px;pointer-events:none;letter-spacing:.2px;
 }
@@ -77,10 +100,15 @@
 #rp5 .slrow{padding:2px 0}
 #rp5 .pi-row{padding:3px 8px}
 
+/* -- the two scrims -------------------------------------------------------- */
+/* Both are SlantUI's .scrim. The model download is the one that can be under
+   the other: a photo dropped while it runs opens its own overlay on top. */
+#samld{z-index:9997}
+
 /* -- developer HUD (F9) ---------------------------------------------------- */
 #perfhud{
   display:none;position:fixed;top:54px;right:calc(var(--rp-w) + 12px);z-index:10000;
-  background:#101013F7;border-radius:var(--r-md);
-  padding:9px 12px;font:11px/1.55 var(--mono);color:var(--text-soft);
+  background:var(--overlay);border-radius:var(--r-md);
+  padding:9px 12px;font:11px/1.55 var(--mono);color:var(--text-2);
   white-space:pre;pointer-events:none;
 }

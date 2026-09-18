@@ -26,8 +26,9 @@ REEXEC_FLAG = "IMTOP_REEXEC"
 _PROBE = (
     "import importlib.util as u;"
     "qt=bool(u.find_spec('PyQt6.QtWebEngineWidgets') or u.find_spec('PyQt5.QtWebEngineWidgets'));"
+    "ui=bool(qt and u.find_spec('slantui'));"
     "sam=bool(u.find_spec('torch') and u.find_spec('segment_anything'));"
-    "print('qt=%d sam=%d' % (qt, sam))"
+    "print('ui=%d sam=%d' % (ui, sam))"
 )
 
 
@@ -42,6 +43,12 @@ def _find(module: str) -> bool:
 def qt_available() -> bool:
     """True when this interpreter has a Qt binding with QtWebEngine."""
     return _find("PyQt6.QtWebEngineWidgets") or _find("PyQt5.QtWebEngineWidgets")
+
+
+def ui_available() -> bool:
+    """True when this interpreter can open the window: a Qt binding with
+    QtWebEngine, and SlantUI, which is the window."""
+    return qt_available() and _find("slantui")
 
 
 def sam_available() -> bool:
@@ -79,32 +86,33 @@ def candidates() -> list[Path]:
 
 
 def probe(exe: Path) -> tuple[bool, bool]:
-    """``(has_qt, has_sam)`` for another interpreter. Never raises."""
+    """``(can_open_the_window, has_sam)`` for another interpreter. Never raises."""
     try:
         out = subprocess.run([str(exe), "-c", _PROBE], capture_output=True,
                              text=True, timeout=25).stdout
     except (OSError, subprocess.SubprocessError):
         return False, False
-    return "qt=1" in out, "sam=1" in out
+    return "ui=1" in out, "sam=1" in out
 
 
 def ensure_interpreter(argv: list[str] | None = None) -> None:
     """Hand over to a working interpreter if this one cannot run the app.
 
     Returns normally when the current interpreter is fine (the common case,
-    and it costs one ``find_spec``), or when no better one was found, the
-    import of :mod:`imtop.qt` then raises a message that says what to install.
+    and it costs two ``find_spec`` calls), or when no better one was found,
+    in which case the import of ``slantui.shell`` raises a message that says
+    what to install.
     """
     if os.environ.get(REEXEC_FLAG) == "1":
         return
-    if qt_available():
+    if ui_available():
         return
 
     args = list(sys.argv[1:] if argv is None else argv)
     fallback: Path | None = None
     for exe in candidates():
-        has_qt, has_sam = probe(exe)
-        if not has_qt:
+        has_ui, has_sam = probe(exe)
+        if not has_ui:
             continue
         if not has_sam and fallback is None:
             fallback = exe          # runs, but without SAM: keep looking first
@@ -115,7 +123,8 @@ def ensure_interpreter(argv: list[str] | None = None) -> None:
         return
 
     sys.stderr.write(
-        "[IMTOP] %s cannot run the UI (no Qt WebEngine) - restarting with %s\n"
+        "[IMTOP] %s cannot open the window (no Qt WebEngine, or no SlantUI) - "
+        "restarting with %s\n"
         % (sys.executable, fallback)
     )
     env = dict(os.environ, **{REEXEC_FLAG: "1"})

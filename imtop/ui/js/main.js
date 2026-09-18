@@ -114,8 +114,14 @@ function onAutoSegDone() {
 /* ── application info ─────────────────────────────────────────────────────── */
 function applyAppInfo(info) {
   APPINFO = info || {};
-  document.getElementById('appVer').textContent = 'IMTOP ' + (APPINFO.version ? 'v' + APPINFO.version : '');
-  document.getElementById('tbarCredit').textContent = APPINFO.credit || '';
+  // The About note carries the full credit. The title bar's line is the
+  // licence one SlantUI writes there, and it is about the layout, not the app.
+  const about = document.getElementById('appVer');
+  about.textContent = 'IMTOP ' + (APPINFO.version ? 'v' + APPINFO.version : '');
+  if (APPINFO.credit) {
+    about.appendChild(document.createElement('br'));
+    about.appendChild(document.createTextNode(APPINFO.credit));
+  }
   buildMethodList(APPINFO.methods);
   updSamCard();
 }
@@ -253,7 +259,6 @@ function installInputHandlers() {
   Bridge.on('autoSegDone', onAutoSegDone);
   Bridge.on('samProgress', samProgress);
   Bridge.on('reportDone', onReportDone);
-  Bridge.on('windowMaximized', onWindowMaximized);
 
   setSt('Waiting…', '');
   buildMetPanel();                           // the rows exist before any number does

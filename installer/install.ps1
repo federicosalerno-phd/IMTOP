@@ -939,7 +939,7 @@ $w.add_SourceInitialized({
 })
 
 # The band: same profile and the same rounded joints as the app's title bar
-# (imtop/ui/js/titlebar.js roundedPolyPath). 44 px under the name, a 38 px
+# (SlantUI's js/titlebar.js, roundedPolyPath). 44 px under the name, a 38 px
 # taper, 28 px to the right edge, both joints rounded by 8 px. The path
 # string is built with the invariant culture: Geometry.Parse wants "x,y"
 # with a dot decimal, whatever the machine's locale.

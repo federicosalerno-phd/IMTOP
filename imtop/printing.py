@@ -20,8 +20,8 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
-from .qt import (QMarginsF, QPageLayout, QPageSize, QTimer, QUrl,
-                 QWebEnginePage, USE_QT6)
+from slantui.shell.qt import (QMarginsF, QPageLayout, QPageSize, QTimer, QUrl,
+                              QWebEnginePage, USE_QT6)
 
 PDF_TIMEOUT_MS = 90_000        # generous: 24 figures on a slow machine still make it
 

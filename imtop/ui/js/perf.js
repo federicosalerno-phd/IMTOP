@@ -139,7 +139,7 @@ function baselineTest() {
   setSt('Baseline test…', 'busy');
   const d = document.createElement('div');
   d.style.cssText = 'position:fixed;top:64px;left:0;width:80px;height:80px;background:' +
-                    COL.accent + ';z-index:99999;will-change:transform;pointer-events:none';
+                    Theme.get('accent') + ';z-index:99999;will-change:transform;pointer-events:none';
   document.body.appendChild(d);
 
   let last = 0, k = 0;

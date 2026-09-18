@@ -50,7 +50,7 @@ function dCal() {
   ctx.closePath();
   ctx.fillStyle = COL['c-badge-bg']; ctx.fill();
   ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.stroke();
-  ctx.fillStyle = COL.text;
+  ctx.fillStyle = Theme.get('text-1');
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(label, cx, cy);
   ctx.restore();

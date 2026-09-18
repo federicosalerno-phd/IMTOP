@@ -4,6 +4,12 @@ Contract with the front-end: the **signal and slot names are the API**. The
 legacy single-file UI and the modular one both bind to these names, so adding a
 slot is fine, renaming one is a breaking change.
 
+:class:`Backend` extends ``slantui.shell.Bridge``, which carries the six
+window chrome slots (``winMinimize``, ``winMaximizeToggle``, ``winClose``,
+``winDrag``, ``winResize``, ``winIsMaximized``) and the ``windowMaximized``
+signal the page's title bar binds to. They were written here and are now the
+library's; what is in this file is IMTOP's own half of the contract.
+
 Threading model, one rule, no locks:
 
 * every slot runs on the GUI thread (QWebChannel delivers calls there);
@@ -24,7 +30,8 @@ import threading
 import traceback
 from pathlib import Path
 
-from .qt import QObject, pyqtSignal, pyqtSlot, QFileDialog, QUEUED, Qt
+from slantui.shell import Bridge, pyqtSignal, pyqtSlot
+from slantui.shell.qt import QObject, QFileDialog, QUEUED
 from . import printing
 from .config import APP_VERSION, APP_CREDIT, REPORTS_DIR, AUTOPROMPT_CTRL_PTS, ensure_dirs
 from .core import imaging, report, results
@@ -86,7 +93,7 @@ class _Worker:
         self._q.put(None)
 
 
-class Backend(QObject):
+class Backend(Bridge):
     # ── signals: part of the UI contract ─────────────────────────────────
     imageReady = pyqtSignal(str)          # data URL of the loaded image
     modelReady = pyqtSignal(bool)         # SAM loaded + image encoded (or failed)
@@ -95,7 +102,6 @@ class Backend(QObject):
     scaleSet = pyqtSignal(float)          # px/mm
     autoSegDone = pyqtSignal(str)         # data URL of the overlay
     samProgress = pyqtSignal(int, str)    # percent, stage
-    windowMaximized = pyqtSignal(bool)    # the window's own title bar is drawn by the UI
     reportDone = pyqtSignal(bool, str)    # a PDF export finished (ok, message)
 
     def __init__(self, parent=None):
@@ -111,12 +117,6 @@ class Backend(QObject):
         self.startup_image: str | None = None
 
     # ── plumbing ─────────────────────────────────────────────────────────
-    # Set by MainWindow. The window has no native frame: the title bar is part
-    # of the page, so the UI needs a way to move, resize and close it. Moving
-    # and resizing go through Qt's *system* calls, which means Windows keeps
-    # doing the snapping, the edge magnetism and the shadow itself.
-    window = None
-
     def _post(self, fn) -> None:
         """Run ``fn`` on the GUI thread (from any thread)."""
         self._gui.call.emit(fn)
@@ -568,55 +568,3 @@ class Backend(QObject):
             return _j({"ok": True, "msg": f"Saved STL: {path}"})
         except Exception as e:
             return _j({"ok": False, "msg": f"STL error: {e}"})
-
-    # ── window chrome (the title bar is drawn by the page) ───────────────
-    @pyqtSlot()
-    def winMinimize(self) -> None:
-        if self.window is not None:
-            self.window.showMinimized()
-
-    @pyqtSlot()
-    def winMaximizeToggle(self) -> None:
-        if self.window is None:
-            return
-        if self.window.isMaximized():
-            self.window.showNormal()
-        else:
-            self.window.showMaximized()
-
-    @pyqtSlot()
-    def winClose(self) -> None:
-        if self.window is not None:
-            self.window.close()
-
-    @pyqtSlot()
-    def winDrag(self) -> None:
-        """Hand the drag to the window manager: snapping keeps working."""
-        if self.window is None:
-            return
-        handle = self.window.windowHandle()
-        if handle is not None:
-            handle.startSystemMove()
-
-    @pyqtSlot(str)
-    def winResize(self, edge: str) -> None:
-        """``edge`` is one of n, s, e, w, ne, nw, se, sw."""
-        if self.window is None:
-            return
-        handle = self.window.windowHandle()
-        if handle is None:
-            return
-        edges = Qt.Edge(0)
-        if "n" in edge:
-            edges |= Qt.Edge.TopEdge
-        if "s" in edge:
-            edges |= Qt.Edge.BottomEdge
-        if "w" in edge:
-            edges |= Qt.Edge.LeftEdge
-        if "e" in edge:
-            edges |= Qt.Edge.RightEdge
-        handle.startSystemResize(edges)
-
-    @pyqtSlot(result=bool)
-    def winIsMaximized(self) -> bool:
-        return bool(self.window is not None and self.window.isMaximized())

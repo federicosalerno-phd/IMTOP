@@ -26,6 +26,13 @@ Graphs/*.xlsx
 Graphs/.RData
 Graphs/.Rhistory
 
+# ── Written next to the page by imtop/app.py ────────────────────────────────
+# SlantUI's five stylesheets and four scripts, bundled into one file each so
+# the page can link them from file://. Generated on every start, from whatever
+# version of the library is installed.
+imtop/ui/slantui.css
+imtop/ui/slantui.js
+
 # ── Python ──────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]

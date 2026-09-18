@@ -194,8 +194,13 @@ cd IMTOP
 py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cpu
 .venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m pip install -e ../SlantUI     # the window and the look
 .venv\Scripts\python -m imtop            # or: python wound_app.py, or launch.bat
 ```
+
+The fourth line is there while SlantUI is unpublished. It is the library the
+window comes from, and IMTOP is its first user; `requirements.txt` says where
+that line goes once it is on an index.
 
 Swap `/cpu` for `/cu124` in the first `pip install` for an NVIDIA GPU. Or just
 double-click `install.cmd`: the result is the same `.venv`.
@@ -204,15 +209,15 @@ Repository layout:
 
 ```
 imtop/                    the application package (python -m imtop [image])
-  app.py                  the window (a Qt Quick window holding the web view), process
-                          bootstrap, taskbar identity
-  shell.qml               the window's only content: the QML WebEngineView that shows ui/
-  bridge.py               the API the UI calls over QWebChannel
+  app.py                  opens SlantUI's window on ui/index.html, with the backend on it
+  bridge.py               the API the UI calls over QWebChannel, on SlantUI's Bridge
   printing.py             HTML to PDF through QtWebEngine
   config.py               paths, tunables, environment overrides
   core/                   geometry, imaging, metrics, session, results, report,
                           segmentation back-ends (no Qt: tools and tests import it headless)
-  ui/                     the web UI: index.html + css/ + js/ + assets/ (logo.png, logo.ico)
+  ui/                     the web UI: index.html + css/ + js/ + assets/ (logo.png, logo.ico).
+                          The shell, the widgets and the window scripts are SlantUI's, written
+                          next to the page as slantui.css and slantui.js on every start
   vendor/                 three.min.js + OrbitControls.js for the 3D viewer
 installer/install.ps1     the installer window (WPF in PowerShell) + quips.txt
 install.cmd               double-click entry point
@@ -228,9 +233,11 @@ docs/images/              the pipeline diagram and the screenshots this README s
 ```
 
 The UI is loaded from a `file://` URL, so the scripts are classic scripts in
-dependency order, not ES modules. The look is defined once, in
-`imtop/ui/css/tokens.css`; the canvas and the 3D materials read the same
-tokens at start-up.
+dependency order, not ES modules. The look is SlantUI: the window, the
+title bar, the stylesheets and the widgets are the library's, and the page
+names roles (`--surface-1`, `--accent`), never colours. What is left in
+`imtop/ui/css/tokens.css` is IMTOP's own: the colours of the contours, the
+metric groups and the 3D materials, which the canvas reads at start-up.
 
 Not in the repository (see `.gitignore`): the SAM checkpoint, the clinical
 images and masks, `dev/` (local test scripts), `.venv/`.

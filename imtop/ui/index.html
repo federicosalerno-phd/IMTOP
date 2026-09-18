@@ -1,23 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-palette="gold-dark">
 <head>
 <meta charset="UTF-8"/>
 <title>IMTOP</title>
+<!-- SlantUI's five stylesheets in load order, written next to this file by
+     imtop/app.py before the window opens, then IMTOP's own two: the tokens
+     the canvas reads and the rules that belong to one step of the workflow.
+     Both of IMTOP's come last, so they can redefine anything above them. -->
+<link rel="stylesheet" href="slantui.css"/>
 <link rel="stylesheet" href="css/tokens.css"/>
-<link rel="stylesheet" href="css/base.css"/>
-<link rel="stylesheet" href="css/layout.css"/>
-<link rel="stylesheet" href="css/components.css"/>
 <link rel="stylesheet" href="css/pages.css"/>
 </head>
 <body>
-<div id="app">
+<div class="app" id="app">
 
   <!-- ══ title bar ═════════════════════════════════════════════════════════
        The window has no native frame, so this is the title bar. The brand
        block sits on a lighter shape whose trailing edge is cut on a slant.
        Dragging it, and the three buttons, go through the backend to Qt, so
        Windows still snaps and edge-magnetises the window itself. ========== -->
-  <div id="titlebar">
+  <div class="titlebar" id="titlebar">
     <div class="tbar-band" id="tbarBand"></div>
     <div class="tbar-brand">
       <img class="tbar-logo" src="assets/logo.png" alt=""
@@ -25,13 +27,11 @@
       <span class="tbar-name"><b>IMTOP</b>&nbsp;&nbsp;Wound Annotator</span>
     </div>
     <div class="tbar-drag" id="tbarDrag"></div>
-    <!-- the credit line, centred in the thin part of the band (text from getAppInfo) -->
-    <span class="tbar-credit" id="tbarCredit"></span>
     <div class="tbar-btns">
-      <div class="wbtn" id="winMin" title="Minimise">
+      <div class="wbtn wbtn-min" id="winMin" title="Minimise">
         <svg viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6"/></svg>
       </div>
-      <div class="wbtn" id="winMax" title="Maximise">
+      <div class="wbtn wbtn-max" id="winMax" title="Maximise">
         <svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/></svg>
       </div>
       <div class="wbtn wbtn-close" id="winClose" title="Close">
@@ -49,8 +49,8 @@
        card in the middle of the stage or on the panel button under it, and
        nowhere else. There used to be four ways to open an image on one
        screen, which is three too many. ==================================== -->
-  <div id="topbar">
-    <div id="tabbar">
+  <div class="topbar" id="topbar">
+    <div class="tabbar" id="tabbar">
       <div class="tab active" id="tab0" onclick="go(0)"><div class="tn" id="tn0">1</div><span>Image</span></div>
       <div class="tab" id="tab1" onclick="go(1)"><div class="tn" id="tn1">2</div><span>Calibration</span></div>
       <div class="tab" id="tab2" onclick="go(2)"><div class="tn" id="tn2">3</div><span>Manual seg</span></div>
@@ -81,15 +81,15 @@
   </div>
 
   <!-- ══ work area ═════════════════════════════════════════════════════════ -->
-  <div id="body">
+  <div class="work" id="body">
 
-    <div id="czone">
+    <div class="main" id="czone">
 
       <!-- canvas toolbar: always this row, on every step, so the stage below
            never moves. Controls that do not apply to a step are hidden in place.
            Every glyph here is an inline SVG stroked with the current colour, so
            it takes the palette; no font dingbats. -->
-      <div id="ctoolbar">
+      <div class="toolbar" id="ctoolbar">
         <div class="ct" title="Zoom in" onclick="zoomStep(1.18)">
           <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.4" y1="15.4" x2="20" y2="20"/><line x1="7.6" y1="10.5" x2="13.4" y2="10.5"/><line x1="10.5" y1="7.6" x2="10.5" y2="13.4"/></svg>
         </div>
@@ -144,7 +144,7 @@
       <!-- steps 2-5: the shared image stage. The photo and the overlays are
            both painted on the one canvas (js/canvas.js). -->
       <div id="canvaswrap">
-        <div id="cwrap">
+        <div class="stage" id="cwrap">
           <canvas id="mc"></canvas>
           <div id="noimg" class="vwait">No image loaded. Open one on step 1, or drop it here.</div>
           <div class="czoom">Ctrl+scroll &middot; Middle-drag pan &middot; Dbl-click fit</div>
@@ -174,7 +174,7 @@
     </div><!-- /czone -->
 
     <!-- ══ side panel ══════════════════════════════════════════════════════ -->
-    <div id="rp">
+    <div class="rp" id="rp">
 
       <!-- panel 1: getting started -->
       <div class="rp-page" id="rp0">
@@ -193,7 +193,7 @@
           <!-- filled from getAppInfo().methods: only what is really installed -->
           <div class="note" id="methodNotes">-</div>
           <div class="sec-lbl">About</div>
-          <div class="note note-dim" id="appVer">IMTOP</div>
+          <div class="note" id="appVer">IMTOP</div>
         </div>
         <div class="rp-foot">
           <button class="btn btn-2 btn-wide" onclick="doBrowse()">
@@ -203,7 +203,7 @@
           <div class="rp-nav">
             <!-- The first step has nothing to go back to. The slot stays, empty,
                  so Next sits where the primary button sits on every other step. -->
-            <button class="btn btn-2 rp-back-none" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="14 6 8 12 14 18"/></svg>Back</button>
+            <button class="btn btn-2 ghost" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="14 6 8 12 14 18"/></svg>Back</button>
             <button class="btn btn-primary btn-grow" id="btn0" onclick="go(1)">Next<svg class="r" viewBox="0 0 24 24"><polyline points="10 6 16 12 10 18"/></svg></button>
           </div>
         </div>
@@ -231,9 +231,9 @@
             <span class="input-unit">mm</span>
           </div>
           <button class="btn btn-2 btn-wide" style="margin-top:8px" onclick="setScale()">Set scale</button>
-          <div id="calok" class="chip chip-ok" style="display:none;margin-top:9px">&#10003;&nbsp;&nbsp;<span id="calval">-</span></div>
+          <div id="calok" class="chip chip-accent" style="display:none;margin-top:9px">&#10003;&nbsp;&nbsp;<span id="calval">-</span></div>
           <div class="sec-lbl">Tip</div>
-          <div class="note note-dim">Use a ruler, coin or marker of known size as the reference.</div>
+          <div class="note">Use a ruler, coin or marker of known size as the reference.</div>
         </div>
         <div class="rp-foot">
           <button class="btn btn-2 btn-wide" onclick="skipScale()">Skip, use pixels</button>
@@ -263,7 +263,7 @@
             Reset contour
           </button>
           <div class="sec-lbl">Draft it for me</div>
-          <div class="note note-dim">The button below asks SAM for a first outline instead of
+          <div class="note">The button below asks SAM for a first outline instead of
             tracing it yourself. It needs a wound that clearly stands out from the skin, it can
             fail, and what it returns is a machine outline: check it, drag the points, then run
             the comparison again from this step.</div>
@@ -393,14 +393,16 @@
 
 <!-- ══ floating chrome ═══════════════════════════════════════════════════════ -->
 <div id="perfhud"></div>
-<div id="toast"></div>
-<div id="loading"><div class="ld-card"><div class="spinner"></div><div id="ldT">Loading&hellip;</div></div></div>
-<div id="samld">
-  <div class="samld-card">
-    <div class="samld-title">Loading segmentation model</div>
-    <div class="samld-pct"><span id="samldPct">0</span><span class="samld-pctsym">%</span></div>
-    <div class="samld-track"><div class="samld-fill" id="samldFill"></div></div>
-    <div class="samld-stage" id="samldStage">Preparing&hellip;</div>
+<div class="toast" id="toast"></div>
+<div class="scrim" id="loading">
+  <div class="busy-card"><div class="spinner"></div><div class="busy-text" id="ldT">Loading&hellip;</div></div>
+</div>
+<div class="scrim" id="samld">
+  <div class="progress-card">
+    <div class="progress-title">Loading segmentation model</div>
+    <div class="progress-pct"><span class="progress-num" id="samldPct">0</span><span class="progress-sym">%</span></div>
+    <div class="progress-track"><div class="progress-fill" id="samldFill"></div></div>
+    <div class="progress-stage" id="samldStage">Preparing&hellip;</div>
   </div>
 </div>
 
@@ -410,13 +412,11 @@
      dependency order; only main.js runs anything at load time.
      ========================================================================= -->
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="slantui.js"></script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/OrbitControls.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/state.js"></script>
-<script src="js/widgets.js"></script>
-<script src="js/bridge.js"></script>
-<script src="js/titlebar.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/canvas.js"></script>
 <script src="js/calibration.js"></script>

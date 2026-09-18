@@ -23,6 +23,19 @@ pillow==12.2.0
 PyQt6==6.11.0
 PyQt6-WebEngine==6.11.0
 
+# --- the window and the look: SlantUI ---
+# The frameless window, the oblique title bar, the stylesheets and the widget
+# scripts are a library of their own, not part of this application. IMTOP is
+# its first user; it imports it like any other dependency and keeps none of it
+# in its own tree.
+#
+# The line is commented because SlantUI is not published yet. Until it is,
+# install it from the checkout, which is what a development machine does:
+#   pip install -e <path to SlantUI>
+# Publishing it turns this into an ordinary pin, and installer/install.ps1
+# needs nothing new.
+# slantui==0.1.0
+
 # --- Segment Anything (SAM, ViT-B) back-end ---
 torch==2.6.0
 torchvision==0.21.0
