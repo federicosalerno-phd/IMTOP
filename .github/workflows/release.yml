@@ -48,7 +48,10 @@ jobs:
         run: |
           unzip -l "$ZIP"
           # The user-facing entry points must be there...
-          for f in install.cmd installer/install.ps1 installer/quips.txt requirements.txt imtop/__main__.py imtop/ui/index.html; do
+          # SlantUI.psm1 and its data are in the list because the installer's
+          # window cannot open without them: they are the palette, the metrics
+          # and the band.
+          for f in install.cmd installer/install.ps1 installer/quips.txt installer/SlantUI.psm1 installer/SlantUI.Tokens.psd1 requirements.txt imtop/__main__.py imtop/ui/index.html; do
             unzip -l "$ZIP" | grep -q "/$f\$" || { echo "::error::$f is missing from the zip"; exit 1; }
           done
           # ...and the things that must never ship must not be.

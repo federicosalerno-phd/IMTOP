@@ -578,6 +578,18 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Drawing
 
+# The look is SlantUI's, and so is every colour and every measurement below.
+# The module and its data sit next to this script; they are copied out of the
+# installed library with
+#     python -c "from slantui.wpf import install; install('installer')"
+# and dev/test_installer_look.py fails while the copies are behind it. They
+# are copies and not an import because this window opens before there is a
+# Python on the machine, which is the whole point of an installer.
+Import-Module (Join-Path $ScriptDir 'SlantUI.psm1') -Force
+$SlantColor  = (Get-SlantPalette).Wpf            # role -> #AARRGGBB, what WPF parses
+$SlantMetric = (Get-SlantTokens).MetricNumbers   # name -> the number, no unit on it
+$SlantFont   = (Get-SlantTokens).Fonts           # the three stacks, as WPF wants them
+
 try {
     Add-Type -Namespace Imtop -Name Native -MemberDefinition @'
 [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
@@ -628,35 +640,26 @@ public static string Describe(IntPtr h) {
     [void][Imtop.Native]::SetCurrentProcessExplicitAppUserModelID($Aumid + ".Installer")
 } catch { }
 
-# Palette: Get-Palette from the Review Desk, the same values as imtop/ui/css/tokens.css.
-$P = @{
-    Bg = '#0D0D0F'; Panel = '#101013'; Panel2 = '#121216'; Panel3 = '#16161B'; Control = '#1E1E24'
-    Track = '#1A1A20'; Hover = '#33333B'; Text = '#E6E6EC'; TextSoft = '#C8C8D0'; TextDim = '#8A8A94'
-    TextFaint = '#4E4E57'; Muted = '#6E6E78'; Accent = '#F5C542'; AccentHi = '#FFD45E'; AccentDim = '#C9A033'
-    Ink = '#0D0D0F'; Card = '#16161B'; CardSel = '#2A2519'; CardErr = '#2C1F1E'; TextErr = '#E8705B'; Err = '#B0524A'
-    Band = '#1E1E24'
-}
-
 $xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="IMTOP Installer" Width="640" Height="450"
         WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="False"
-        Background="#0D0D0F" Foreground="#E6E6EC" FontFamily="Segoe UI" FontSize="12.5"
+        Background="{{surface-0}}" Foreground="{{text-1}}" FontFamily="{{f:font}}" FontSize="{{m:fs}}"
         WindowStartupLocation="CenterScreen" UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
   <Window.Resources>
     <Style TargetType="TextBlock">
-      <Setter Property="FontFamily" Value="Segoe UI"/>
+      <Setter Property="FontFamily" Value="{{f:font}}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <!-- Buttons are fills, never outlines: rest, hover, pressed are three fills.
          Keyboard focus is an inset ring. -->
     <Style x:Key="Gold" TargetType="Button">
-      <Setter Property="Foreground" Value="#0D0D0F"/>
+      <Setter Property="Foreground" Value="{{on-accent}}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="FontSize" Value="{{m:fs}}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Height" Value="32"/>
       <Setter Property="Padding" Value="18,0,18,0"/>
@@ -665,20 +668,20 @@ $xaml = @'
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="b" Background="#F5C542" CornerRadius="5" Padding="{TemplateBinding Padding}">
+            <Border x:Name="b" Background="{{accent}}" CornerRadius="{{m:r}}" Padding="{TemplateBinding Padding}">
               <Border x:Name="f" BorderBrush="Transparent" BorderThickness="1.5" CornerRadius="3" Margin="-14,3,-14,3">
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="b" Property="Background" Value="#FFD45E"/>
+                <Setter TargetName="b" Property="Background" Value="{{accent-hover}}"/>
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="b" Property="Background" Value="#C9A033"/>
+                <Setter TargetName="b" Property="Background" Value="{{accent-active}}"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="f" Property="BorderBrush" Value="#0D0D0F"/>
+                <Setter TargetName="f" Property="BorderBrush" Value="{{on-accent}}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -687,8 +690,8 @@ $xaml = @'
     </Style>
 
     <Style x:Key="Muted" TargetType="Button">
-      <Setter Property="Foreground" Value="#C8C8D0"/>
-      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="Foreground" Value="{{text-2}}"/>
+      <Setter Property="FontSize" Value="{{m:fs}}"/>
       <Setter Property="FontWeight" Value="Normal"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Height" Value="32"/>
@@ -698,21 +701,21 @@ $xaml = @'
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="b" Background="#1E1E24" CornerRadius="5" Padding="{TemplateBinding Padding}">
+            <Border x:Name="b" Background="{{control}}" CornerRadius="{{m:r}}" Padding="{TemplateBinding Padding}">
               <Border x:Name="f" BorderBrush="Transparent" BorderThickness="1.5" CornerRadius="3" Margin="-12,3,-12,3">
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="b" Property="Background" Value="#33333B"/>
-                <Setter Property="Foreground" Value="#E6E6EC"/>
+                <Setter TargetName="b" Property="Background" Value="{{control-hover}}"/>
+                <Setter Property="Foreground" Value="{{text-1}}"/>
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="b" Property="Background" Value="#1E1E24"/>
+                <Setter TargetName="b" Property="Background" Value="{{control-active}}"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="f" Property="BorderBrush" Value="#F5C542"/>
+                <Setter TargetName="f" Property="BorderBrush" Value="{{accent-text}}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -724,7 +727,7 @@ $xaml = @'
     <Style x:Key="WinBtn" TargetType="Button">
       <Setter Property="Width" Value="42"/>
       <Setter Property="Height" Value="28"/>
-      <Setter Property="Foreground" Value="#8A8A94"/>
+      <Setter Property="Foreground" Value="{{text-3}}"/>
       <Setter Property="Cursor" Value="Arrow"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Template">
@@ -735,8 +738,8 @@ $xaml = @'
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="b" Property="Background" Value="#33333B"/>
-                <Setter Property="Foreground" Value="#E6E6EC"/>
+                <Setter TargetName="b" Property="Background" Value="{{control-hover}}"/>
+                <Setter Property="Foreground" Value="{{text-1}}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -752,8 +755,8 @@ $xaml = @'
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="b" Property="Background" Value="#B0524A"/>
-                <Setter Property="Foreground" Value="#FFFFFF"/>
+                <Setter TargetName="b" Property="Background" Value="{{err}}"/>
+                <Setter Property="Foreground" Value="{{on-status}}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -763,7 +766,7 @@ $xaml = @'
 
     <!-- A tick box that is a fill: grey at rest, gold with an ink tick when on. -->
     <Style x:Key="Tick" TargetType="CheckBox">
-      <Setter Property="Foreground" Value="#C8C8D0"/>
+      <Setter Property="Foreground" Value="{{text-2}}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="Template">
@@ -771,8 +774,8 @@ $xaml = @'
           <ControlTemplate TargetType="CheckBox">
             <Border x:Name="row" Background="Transparent" CornerRadius="5" Padding="6,5,10,5" Margin="-6,0,0,0">
               <StackPanel Orientation="Horizontal">
-                <Border x:Name="box" Width="17" Height="17" CornerRadius="4" Background="#1E1E24" VerticalAlignment="Center">
-                  <Path x:Name="tick" Data="M3.5,8.5 L7,12 L13.5,5" Stroke="#0D0D0F" StrokeThickness="2"
+                <Border x:Name="box" Width="17" Height="17" CornerRadius="{{m:r-xs}}" Background="{{control}}" VerticalAlignment="Center">
+                  <Path x:Name="tick" Data="M3.5,8.5 L7,12 L13.5,5" Stroke="{{on-accent}}" StrokeThickness="2"
                         StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                 </Border>
                 <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center"/>
@@ -780,14 +783,14 @@ $xaml = @'
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="box" Property="Background" Value="#F5C542"/>
+                <Setter TargetName="box" Property="Background" Value="{{accent}}"/>
                 <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
               </Trigger>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="row" Property="Background" Value="#16161B"/>
+                <Setter TargetName="row" Property="Background" Value="{{surface-3}}"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="row" Property="Background" Value="#16161B"/>
+                <Setter TargetName="row" Property="Background" Value="{{surface-3}}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -796,7 +799,7 @@ $xaml = @'
     </Style>
   </Window.Resources>
 
-  <Border x:Name="Root" Background="#0D0D0F">
+  <Border x:Name="Root" Background="{{surface-0}}">
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="44"/>
@@ -807,12 +810,12 @@ $xaml = @'
       <!-- Title bar: one band the whole width, thick under the name, a straight
            taper, thin under the buttons. The shape is a Path filled at run time
            from the real width of the name (Set-BandShape). -->
-      <Grid x:Name="TitleBar" Grid.Row="0" Background="#101013">
-        <Path x:Name="Band" Fill="#1E1E24" IsHitTestVisible="False"/>
+      <Grid x:Name="TitleBar" Grid.Row="0" Background="{{surface-1}}">
+        <Path x:Name="Band" Fill="{{control}}" IsHitTestVisible="False"/>
         <StackPanel x:Name="Brand" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Stretch" Margin="0">
-          <Border x:Name="Logo" Width="22" Height="22" CornerRadius="5" Margin="14,0,11,0" VerticalAlignment="Center" Background="#F5C542"/>
-          <TextBlock VerticalAlignment="Center" FontFamily="Abadi, Segoe UI Variable Display, Segoe UI" FontSize="14.5" Foreground="#C8C8D0" Margin="0,0,16,0">
-            <Run Text="IMTOP" FontWeight="SemiBold" Foreground="#E6E6EC"/><Run Text="  Installer"/>
+          <Border x:Name="Logo" Width="22" Height="22" CornerRadius="{{m:r}}" Margin="14,0,11,0" VerticalAlignment="Center" Background="{{accent}}"/>
+          <TextBlock VerticalAlignment="Center" FontFamily="{{f:font-brand}}" FontSize="14.5" Foreground="{{text-2}}" Margin="0,0,16,0">
+            <Run Text="IMTOP" FontWeight="SemiBold" Foreground="{{text-1}}"/><Run Text="  Installer"/>
           </TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
@@ -830,16 +833,16 @@ $xaml = @'
 
         <!-- Ready -->
         <StackPanel x:Name="ViewReady">
-          <TextBlock Text="Install IMTOP" FontSize="22" FontWeight="Light" Foreground="#E6E6EC" Margin="0,0,0,10"/>
-          <TextBlock Foreground="#8A8A94" FontSize="11.5" Text="INTO THIS FOLDER" Margin="0,0,0,4"/>
-          <Border Background="#16161B" CornerRadius="6" Padding="10,7,10,7" Margin="0,0,0,14" HorizontalAlignment="Left">
-            <TextBlock x:Name="ReadyPath" FontFamily="Consolas" FontSize="12" Foreground="#C8C8D0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+          <TextBlock Text="Install IMTOP" FontSize="22" FontWeight="Light" Foreground="{{text-1}}" Margin="0,0,0,10"/>
+          <TextBlock Foreground="{{text-4}}" FontSize="{{m:fs-sm}}" Text="INTO THIS FOLDER" Margin="0,0,0,4"/>
+          <Border Background="{{surface-3}}" CornerRadius="{{m:r-md}}" Padding="10,7,10,7" Margin="0,0,0,14" HorizontalAlignment="Left">
+            <TextBlock x:Name="ReadyPath" FontFamily="{{f:mono}}" FontSize="12" Foreground="{{text-2}}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
           </Border>
           <StackPanel x:Name="ReadyList" Margin="0,0,0,12"/>
           <CheckBox x:Name="ChkCuda" Style="{StaticResource Tick}" Visibility="Collapsed" Margin="0,0,0,8">
-            <TextBlock x:Name="ChkCudaText" Foreground="#C8C8D0"/>
+            <TextBlock x:Name="ChkCudaText" Foreground="{{text-2}}"/>
           </CheckBox>
-          <TextBlock x:Name="ReadyNote" Foreground="#8A8A94" FontSize="11.5" Visibility="Collapsed"/>
+          <TextBlock x:Name="ReadyNote" Foreground="{{text-3}}" FontSize="{{m:fs-sm}}" Visibility="Collapsed"/>
         </StackPanel>
 
         <!-- Working -->
@@ -850,53 +853,79 @@ $xaml = @'
           </Grid.RowDefinitions>
           <StackPanel x:Name="Steps" Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,26"/>
           <StackPanel Grid.Row="1" VerticalAlignment="Top">
-            <TextBlock x:Name="WorkTitle" Foreground="#8A8A94" FontWeight="Medium" Text="Python 3.11" Margin="0,0,0,6"/>
+            <TextBlock x:Name="WorkTitle" Foreground="{{text-3}}" FontWeight="Medium" Text="Python 3.11" Margin="0,0,0,6"/>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-              <TextBlock x:Name="WorkPct" Text="0" FontSize="52" FontWeight="Light" Foreground="#E6E6EC" LineHeight="52" LineStackingStrategy="BlockLineHeight"/>
-              <TextBlock Text="%" FontSize="20" FontWeight="Light" Foreground="#8A8A94" Margin="3,7,0,0" VerticalAlignment="Top"/>
+              <TextBlock x:Name="WorkPct" Text="0" FontSize="52" FontWeight="Light" Foreground="{{text-1}}" LineHeight="52" LineStackingStrategy="BlockLineHeight"/>
+              <TextBlock Text="%" FontSize="20" FontWeight="Light" Foreground="{{text-3}}" Margin="3,7,0,0" VerticalAlignment="Top"/>
             </StackPanel>
-            <Border x:Name="BarTrack" Height="4" CornerRadius="99" Background="#1A1A20" Margin="0,0,0,12">
-              <Border x:Name="BarFill" HorizontalAlignment="Left" Width="0" CornerRadius="99">
+            <Border x:Name="BarTrack" Height="4" CornerRadius="{{m:r-pill}}" Background="{{control}}" Margin="0,0,0,12">
+              <Border x:Name="BarFill" HorizontalAlignment="Left" Width="0" CornerRadius="{{m:r-pill}}">
                 <Border.Background>
                   <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#C9A033" Offset="0"/>
-                    <GradientStop Color="#F5C542" Offset="1"/>
+                    <GradientStop Color="{{accent-active}}" Offset="0"/>
+                    <GradientStop Color="{{accent}}" Offset="1"/>
                   </LinearGradientBrush>
                 </Border.Background>
               </Border>
             </Border>
-            <TextBlock x:Name="WorkDetail" Foreground="#8A8A94" FontSize="11.5" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MinHeight="16" Margin="0,0,0,18"/>
-            <TextBlock x:Name="WorkQuip" Foreground="#C8C8D0" MinHeight="18"/>
+            <TextBlock x:Name="WorkDetail" Foreground="{{text-3}}" FontSize="{{m:fs-sm}}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MinHeight="16" Margin="0,0,0,18"/>
+            <TextBlock x:Name="WorkQuip" Foreground="{{text-2}}" MinHeight="18"/>
           </StackPanel>
         </Grid>
 
         <!-- Done -->
         <StackPanel x:Name="ViewDone" Visibility="Collapsed">
-          <TextBlock Text="Installed" FontSize="22" FontWeight="Light" Foreground="#E6E6EC" Margin="0,0,0,10"/>
-          <TextBlock x:Name="DoneText" Foreground="#C8C8D0" Margin="0,0,0,14"/>
+          <TextBlock Text="Installed" FontSize="22" FontWeight="Light" Foreground="{{text-1}}" Margin="0,0,0,10"/>
+          <TextBlock x:Name="DoneText" Foreground="{{text-2}}" Margin="0,0,0,14"/>
           <StackPanel x:Name="DoneList" Margin="0,0,0,14"/>
-          <TextBlock x:Name="DoneQuip" Foreground="#8A8A94" FontSize="11.5"/>
+          <TextBlock x:Name="DoneQuip" Foreground="{{text-3}}" FontSize="{{m:fs-sm}}"/>
         </StackPanel>
 
         <!-- Error -->
         <StackPanel x:Name="ViewError" Visibility="Collapsed">
-          <TextBlock Text="That did not work" FontSize="22" FontWeight="Light" Foreground="#E6E6EC" Margin="0,0,0,10"/>
-          <Border Background="#2C1F1E" CornerRadius="6" Padding="14,11,14,11" Margin="0,0,0,12">
-            <TextBlock x:Name="ErrorText" Foreground="#E8705B"/>
+          <TextBlock Text="That did not work" FontSize="22" FontWeight="Light" Foreground="{{text-1}}" Margin="0,0,0,10"/>
+          <Border Background="{{err-surface}}" CornerRadius="{{m:r-md}}" Padding="14,11,14,11" Margin="0,0,0,12">
+            <TextBlock x:Name="ErrorText" Foreground="{{err-text}}"/>
           </Border>
-          <TextBlock x:Name="ErrorHint" Foreground="#8A8A94" FontSize="11.5"/>
+          <TextBlock x:Name="ErrorHint" Foreground="{{text-3}}" FontSize="{{m:fs-sm}}"/>
         </StackPanel>
       </Grid>
 
       <!-- Footer: a filled band, the actions on the right -->
-      <Grid Grid.Row="2" Background="#101013" Height="58">
-        <TextBlock x:Name="FootLeft" Foreground="#6E6E78" FontSize="11.5" FontFamily="Consolas" VerticalAlignment="Center" Margin="24,0,0,0"/>
+      <Grid Grid.Row="2" Background="{{surface-1}}" Height="58">
+        <TextBlock x:Name="FootLeft" Foreground="{{text-4}}" FontSize="{{m:fs-sm}}" FontFamily="{{f:mono}}" VerticalAlignment="Center" Margin="24,0,0,0"/>
         <StackPanel x:Name="FootBtns" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,24,0"/>
       </Grid>
     </Grid>
   </Border>
 </Window>
 '@
+
+# The markup above names roles, metrics and fonts, never values, in double
+# braces: a role on its own, a metric behind "m:", a font behind "f:". They are
+# filled in here from the library, so a colour the contrast auditor corrects
+# reaches this window by being regenerated and not by anyone retyping it. An
+# unknown name throws, because a misspelt role would otherwise reach WPF as
+# the literal text and it would choke on it with nothing useful to say.
+$inv = [System.Globalization.CultureInfo]::InvariantCulture
+# The names here are spelt out. PowerShell has one namespace for $m and $M, so
+# a hashtable called $M and a match called $m are the same variable, and the
+# substitution quietly asks the match for a colour.
+$xaml = [regex]::Replace($xaml, '\{\{([a-z]:)?([a-z0-9-]+)\}\}', {
+    param($hit)
+    $kind = $hit.Groups[1].Value
+    $name = $hit.Groups[2].Value
+    if ($kind -eq 'm:') {
+        if (-not $SlantMetric.ContainsKey($name)) { throw "install.ps1: no metric called '$name'" }
+        return ([double]$SlantMetric[$name]).ToString($inv)
+    }
+    if ($kind -eq 'f:') {
+        if (-not $SlantFont.ContainsKey($name)) { throw "install.ps1: no font called '$name'" }
+        return $SlantFont[$name]
+    }
+    if (-not $SlantColor.ContainsKey($name)) { throw "install.ps1: no role called '$name'" }
+    return $SlantColor[$name]
+})
 
 $w = [System.Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader ([xml]$xaml)))
 $el = @{}
@@ -906,7 +935,8 @@ foreach ($name in 'Root', 'TitleBar', 'Band', 'Brand', 'Logo', 'BtnMin', 'BtnClo
     $el[$name] = $w.FindName($name)
 }
 
-function New-Brush([string]$hex) { return (New-Object System.Windows.Media.BrushConverter).ConvertFromString($hex) }
+# New-SlantBrush takes either hex order and freezes what it makes.
+function New-Brush([string]$hex) { return New-SlantBrush $hex }
 
 # -- chrome -----------------------------------------------------------------
 if (Test-Path -LiteralPath $IconPath) {
@@ -938,44 +968,14 @@ $w.add_SourceInitialized({
     } catch { }
 })
 
-# The band: same profile and the same rounded joints as the app's title bar
-# (SlantUI's js/titlebar.js, roundedPolyPath). 44 px under the name, a 38 px
-# taper, 28 px to the right edge, both joints rounded by 8 px. The path
-# string is built with the invariant culture: Geometry.Parse wants "x,y"
-# with a dot decimal, whatever the machine's locale.
+# The band. Its profile used to be written out here, a second copy of the maths
+# in SlantUI's js/titlebar.js, kept in step by hand. It is one call now, and the
+# path it returns is the same string the page puts in its clip-path, character
+# for character: tests/test_wpf.py in the library runs both and compares them.
 function Set-BandShape {
-    $ci = [System.Globalization.CultureInfo]::InvariantCulture
     $W = $el.TitleBar.ActualWidth
     if ($W -le 0) { return }
-    $h1 = 44.0; $h2 = 28.0; $slant = 38.0; $join = 8.0
-    $x1 = [math]::Round($el.Brand.ActualWidth)
-    $x2 = [math]::Min($W, $x1 + $slant)
-    $pts = @(
-        @{ x = 0.0; y = 0.0; r = 0.0 }, @{ x = $W; y = 0.0; r = 0.0 }, @{ x = $W; y = $h2; r = 0.0 },
-        @{ x = [double]$x2; y = $h2; r = $join }, @{ x = [double]$x1; y = $h1; r = $join }, @{ x = 0.0; y = $h1; r = 0.0 }
-    )
-    $n = $pts.Count
-    $sb = New-Object System.Text.StringBuilder
-    for ($i = 0; $i -lt $n; $i++) {
-        $prev = $pts[($i - 1 + $n) % $n]; $cur = $pts[$i]; $next = $pts[($i + 1) % $n]
-        $cmd = if ($i -eq 0) { 'M' } else { 'L' }
-        if ($cur.r -le 0) {
-            [void]$sb.Append($cmd).Append($cur.x.ToString('0.##', $ci)).Append(',').Append($cur.y.ToString('0.##', $ci)).Append(' ')
-            continue
-        }
-        $v1x = $prev.x - $cur.x; $v1y = $prev.y - $cur.y
-        $v2x = $next.x - $cur.x; $v2y = $next.y - $cur.y
-        $l1 = [math]::Sqrt($v1x * $v1x + $v1y * $v1y); if ($l1 -eq 0) { $l1 = 1.0 }
-        $l2 = [math]::Sqrt($v2x * $v2x + $v2y * $v2y); if ($l2 -eq 0) { $l2 = 1.0 }
-        $a = [math]::Min($cur.r, $l1 / 2); $b = [math]::Min($cur.r, $l2 / 2)
-        $p1x = $cur.x + $v1x / $l1 * $a; $p1y = $cur.y + $v1y / $l1 * $a
-        $p2x = $cur.x + $v2x / $l2 * $b; $p2y = $cur.y + $v2y / $l2 * $b
-        [void]$sb.Append($cmd).Append($p1x.ToString('0.##', $ci)).Append(',').Append($p1y.ToString('0.##', $ci)).Append(' ')
-        [void]$sb.Append('Q').Append($cur.x.ToString('0.##', $ci)).Append(',').Append($cur.y.ToString('0.##', $ci)).Append(' ')
-        [void]$sb.Append($p2x.ToString('0.##', $ci)).Append(',').Append($p2y.ToString('0.##', $ci)).Append(' ')
-    }
-    [void]$sb.Append('Z')
-    $el.Band.Data = [System.Windows.Media.Geometry]::Parse($sb.ToString())
+    $el.Band.Data = Get-SlantBandGeometry -Width $W -BrandWidth ([math]::Round($el.Brand.ActualWidth))
 }
 $el.TitleBar.add_SizeChanged({ try { Set-BandShape } catch { } })
 $w.add_ContentRendered({ try { Set-BandShape } catch { } })
@@ -1050,9 +1050,9 @@ function Add-Bullet($panel, [string]$text) {
     $c1 = New-Object System.Windows.Controls.ColumnDefinition
     [void]$g.ColumnDefinitions.Add($c0); [void]$g.ColumnDefinitions.Add($c1)
     $dot = New-Object System.Windows.Shapes.Ellipse
-    $dot.Width = 6; $dot.Height = 6; $dot.Fill = New-Brush $P.Accent
+    $dot.Width = 6; $dot.Height = 6; $dot.Fill = New-Brush $SlantColor['accent']
     $dot.VerticalAlignment = 'Top'; $dot.HorizontalAlignment = 'Left'; $dot.Margin = New-Object System.Windows.Thickness(1, 6, 0, 0)
-    $t = New-Text $text $P.TextSoft
+    $t = New-Text $text $SlantColor['text-2']
     [System.Windows.Controls.Grid]::SetColumn($t, 1)
     [void]$g.Children.Add($dot); [void]$g.Children.Add($t)
     [void]$panel.Children.Add($g)
@@ -1082,10 +1082,10 @@ foreach ($st in $Steps) {
     $b = New-Object System.Windows.Controls.Border
     $b.Width = 80; $b.Height = 26; $b.CornerRadius = New-Object System.Windows.CornerRadius(5)
     $b.Margin = New-Object System.Windows.Thickness(0, 0, 3, 0)
-    $b.Background = New-Brush $P.Panel2
+    $b.Background = New-Brush $SlantColor['surface-2']
     $t = New-Object System.Windows.Controls.TextBlock
     $t.Text = $st.Label; $t.FontSize = 11.5; $t.HorizontalAlignment = 'Center'; $t.VerticalAlignment = 'Center'
-    $t.Foreground = New-Brush $P.TextFaint
+    $t.Foreground = New-Brush $SlantColor['text-4']
     $b.Child = $t
     [void]$el.Steps.Children.Add($b)
     $Chips += $b
@@ -1094,13 +1094,13 @@ function Update-Chips([int]$active, [bool]$allDone) {
     for ($i = 0; $i -lt $Chips.Count; $i++) {
         $b = $Chips[$i]; $t = $b.Child
         if ($allDone -or $i -lt $active) {
-            $b.Background = New-Brush $P.Panel3; $t.Foreground = New-Brush $P.TextDim
+            $b.Background = New-Brush $SlantColor['surface-3']; $t.Foreground = New-Brush $SlantColor['text-3']
             $t.Text = [string][char]0x2713 + ' ' + $Steps[$i].Label; $t.FontWeight = 'Normal'
         } elseif ($i -eq $active) {
-            $b.Background = New-Brush $P.Accent; $t.Foreground = New-Brush $P.Ink
+            $b.Background = New-Brush $SlantColor['accent']; $t.Foreground = New-Brush $SlantColor['on-accent']
             $t.Text = $Steps[$i].Label; $t.FontWeight = 'SemiBold'
         } else {
-            $b.Background = New-Brush $P.Panel2; $t.Foreground = New-Brush $P.TextFaint
+            $b.Background = New-Brush $SlantColor['surface-2']; $t.Foreground = New-Brush $SlantColor['text-4']
             $t.Text = $Steps[$i].Label; $t.FontWeight = 'Normal'
         }
     }
