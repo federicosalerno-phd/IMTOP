@@ -111,6 +111,30 @@ function New-SlantBrush {
     return $brush
 }
 
+function ConvertTo-SlantColorRef {
+    <#  .SYNOPSIS  A role as the integer Windows wants, 0x00BBGGRR.
+
+        The DWM takes its colours as a COLORREF and not as a string, and it
+        puts the channels in the other order: DwmSetWindowAttribute with
+        CAPTION_COLOR, TEXT_COLOR or BORDER_COLOR is the one place an
+        application hands Windows a colour by number. Getting the order
+        wrong paints the caption in the complement of what was meant, which
+        reads as a broken window and not as a typo.
+
+        .EXAMPLE
+            $ref = ConvertTo-SlantColorRef (Get-SlantColor 'surface-0')
+            [void][Desk.Shell]::DwmSetWindowAttribute($h, 35, [ref]$ref, 4)  #>
+    param([Parameter(Mandatory = $true)][string]$Hex)
+    $h = $Hex.TrimStart('#')
+    if ($h.Length -eq 3) { $h = ($h.ToCharArray() | ForEach-Object { "$_$_" }) -join '' }
+    if ($h.Length -eq 8) { $h = $h.Substring(2) }      # #AARRGGBB: the alpha goes
+    if ($h.Length -ne 6) { throw "not a colour: '$Hex'" }
+    $r = [Convert]::ToInt32($h.Substring(0, 2), 16)
+    $g = [Convert]::ToInt32($h.Substring(2, 2), 16)
+    $b = [Convert]::ToInt32($h.Substring(4, 2), 16)
+    return ($b -shl 16) -bor ($g -shl 8) -bor $r
+}
+
 function Get-SlantBrushes {
     <#  .SYNOPSIS  Every role of a palette as a frozen brush, by role name.
         .EXAMPLE   $b = Get-SlantBrushes; $win.Background = $b['surface-0']  #>
@@ -236,6 +260,7 @@ function Get-SlantBandGeometry {
 }
 
 Export-ModuleMember -Function Get-SlantDataPath, Get-SlantTokens, Get-SlantPaletteNames,
-    Get-SlantPalette, Get-SlantColor, Get-SlantMetric, New-SlantBrush, Get-SlantBrushes,
+    Get-SlantPalette, Get-SlantColor, Get-SlantMetric, ConvertTo-SlantColorRef,
+    New-SlantBrush, Get-SlantBrushes,
     Get-SlantBandPoints, Get-SlantRoundedPolyPath, Get-SlantBandPath, Get-SlantBandGeometry,
     Format-SlantCoord
