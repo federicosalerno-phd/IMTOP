@@ -432,9 +432,18 @@ try {
                 Say ("Downloading Python " + $Cfg.PyFullVersion + " from python.org (25 MB)")
                 $exe = Join-Path $env:TEMP ("python-" + $Cfg.PyFullVersion + "-amd64.exe")
                 Download $Cfg.PyExeUrl $exe $Cfg.PyExeBytes
-                Say "Installing Python quietly (this user only, no admin rights)"
-                $p = Start-Process -FilePath $exe -PassThru -Wait -ArgumentList @('/quiet', 'InstallAllUsers=0', 'PrependPath=0',
+                Say "Installing Python quietly, this one takes a few minutes"
+                $p = Start-Process -FilePath $exe -PassThru -ArgumentList @('/quiet', 'InstallAllUsers=0', 'PrependPath=0',
                         'Include_launcher=1', 'InstallLauncherAllUsers=0', 'Include_test=0', 'Include_doc=0', 'Include_tcltk=0', 'Shortcuts=0')
+                # Python's own installer says nothing at all while it works, and on a
+                # slow disk it can be at it for ten minutes. A bar that does not move
+                # for ten minutes looks like a bar that has died, and somebody will
+                # close the window. So ease it towards the end of the step instead of
+                # standing still: it never quite arrives, and it never stops moving.
+                while (-not $p.HasExited) {
+                    Start-Sleep -Milliseconds 400
+                    $S.Frac = $S.Frac + (0.97 - $S.Frac) * 0.006
+                }
                 Log ("python.org installer exit " + $p.ExitCode)
                 Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
                 $py = Find-Python311 $Cfg.PyMajorMinor
@@ -470,6 +479,23 @@ try {
         if ($code -ne 0 -or -not (Test-Path -LiteralPath $Cfg.VenvPy)) {
             throw ("Could not create the virtual environment (python -m venv failed, exit " + $code + "). See the log.")
         }
+    }
+
+    # The app is a folder sitting next to this .venv, not a package pip ever
+    # installed, so `import imtop` would only work while the current directory
+    # happens to be the app's own. One line in the environment's search path
+    # settles it: the shortcut, launch.bat and anything else can start the app
+    # from anywhere, and the import check below means what it says instead of
+    # quietly finding some other copy of imtop in the current directory.
+    # Moving the app folder breaks the .venv anyway; running install.cmd again
+    # rewrites this.
+    $site = Join-Path $Cfg.VenvDir "Lib\site-packages"
+    if (Test-Path -LiteralPath $site) {
+        # site.py reads a .pth with the system's own encoding, so write it that way.
+        Set-Content -LiteralPath (Join-Path $site "imtop.pth") -Value $Cfg.Root -Encoding Default
+        Say ("the app folder is on the environment's search path: " + $Cfg.Root)
+    } else {
+        Log ("no site-packages under " + $Cfg.VenvDir + ", skipping the path file")
     }
     $S.Frac = 1.0
 
@@ -517,7 +543,10 @@ try {
     Step 'check' 5 'Check'
     Say "Importing everything the app needs"
     $S.Frac = 0.3
-    $probe = "import PyQt6.QtWebEngineWidgets, numpy, scipy, cv2, PIL, torch, segment_anything, imtop.core; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())"
+    # Run from somewhere else on purpose: if this only worked from the app's own
+    # folder, the shortcut would be the only way to start it. imtop.__file__ says
+    # which copy answered, so a stray imtop next door cannot fake a pass.
+    $probe = "import os; os.chdir(os.environ['SystemRoot']); import PyQt6.QtWebEngineWidgets, numpy, scipy, cv2, PIL, torch, segment_anything, imtop.core; print('torch', torch.__version__, 'cuda', torch.cuda.is_available()); print('imtop from', os.path.dirname(os.path.dirname(imtop.core.__file__)))"
     $code = Run $Cfg.VenvPy @('-c', $probe) { param($l) Say $l }
     if ($code -ne 0) { throw "The environment was built, but the app's modules do not import from it. See the log." }
     $S.Frac = 1.0
