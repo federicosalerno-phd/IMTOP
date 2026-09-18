@@ -29,12 +29,13 @@ PyQt6-WebEngine==6.11.0
 # its first user; it imports it like any other dependency and keeps none of it
 # in its own tree.
 #
-# The line is commented because SlantUI is not published yet. Until it is,
-# install it from the checkout, which is what a development machine does:
-#   pip install -e <path to SlantUI>
-# Publishing it turns this into an ordinary pin, and installer/install.ps1
-# needs nothing new.
-# slantui==0.1.0
+# On the index since 2026-09-18, so this is an ordinary pin and the installer
+# needs nothing new. A development machine that works on both at once still
+# does pip install -e <path to SlantUI>, which takes precedence over this.
+# The shell extra is left off on purpose: PyQt6 and the WebEngine are pinned
+# above, at the versions this application is tested on, and the extra would
+# ask for them a second time with a looser bound.
+slantui==0.2.0
 
 # --- Segment Anything (SAM, ViT-B) back-end ---
 torch==2.6.0
