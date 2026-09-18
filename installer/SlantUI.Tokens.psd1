@@ -122,7 +122,7 @@
         'gold-dark' = @{
             Name   = 'Gold Dark'
             Scheme = 'dark'
-            Note   = 'IMTOP''s palette, which came from Review Desk. Gold on near black.'
+            Note   = 'Gold on near black. It''s the palette the design was drawn in.'
             Values = @{
                 'surface-0'            = '#0D0D0F'
                 'surface-1'            = '#101013'
@@ -193,7 +193,7 @@
         'gold-light' = @{
             Name   = 'Gold Light'
             Scheme = 'light'
-            Note   = 'The same gold on paper. Surfaces and text come from the report theme in imtop/core/report.py, which was already in use.'
+            Note   = 'The same gold on paper. The surfaces and the text are the ones a printed report uses.'
             Values = @{
                 'surface-0'            = '#EFEFF2'
                 'surface-1'            = '#F1F1F4'
@@ -264,7 +264,7 @@
         'teal-dark' = @{
             Name   = 'Teal Dark'
             Scheme = 'dark'
-            Note   = 'Gold Dark with the Review Desk teal in front.'
+            Note   = 'Gold Dark with a teal accent in front.'
             Values = @{
                 'surface-0'            = '#0D0D0F'
                 'surface-1'            = '#101013'
@@ -335,7 +335,7 @@
         'blue-dark' = @{
             Name   = 'Blue Dark'
             Scheme = 'dark'
-            Note   = 'Gold Dark with the Review Desk blue in front.'
+            Note   = 'Gold Dark with a blue accent in front.'
             Values = @{
                 'surface-0'            = '#0D0D0F'
                 'surface-1'            = '#101013'
@@ -406,7 +406,7 @@
         'purple-dark' = @{
             Name   = 'Purple Dark'
             Scheme = 'dark'
-            Note   = 'Gold Dark with the Review Desk purple in front.'
+            Note   = 'Gold Dark with a purple accent in front.'
             Values = @{
                 'surface-0'            = '#0D0D0F'
                 'surface-1'            = '#101013'
@@ -477,7 +477,7 @@
         'green-dark' = @{
             Name   = 'Green Dark'
             Scheme = 'dark'
-            Note   = 'Gold Dark with the Review Desk green in front. The accent and the ok colour share a hue here, so read the shape, not the colour.'
+            Note   = 'Gold Dark with a green accent in front. The accent and the ok colour share a hue here, so read the shape, not the colour.'
             Values = @{
                 'surface-0'            = '#0D0D0F'
                 'surface-1'            = '#101013'
@@ -548,7 +548,7 @@
         'slate-light' = @{
             Name   = 'Slate Light'
             Scheme = 'light'
-            Note   = 'Cool greys and a blue accent, for an application that should not look like IMTOP.'
+            Note   = 'Cool greys and a blue accent, for an application that should not look like the default.'
             Values = @{
                 'surface-0'            = '#E9EBEF'
                 'surface-1'            = '#EDEFF3'
